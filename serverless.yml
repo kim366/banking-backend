@@ -4,8 +4,15 @@ frameworkVersion: '2'
 provider:
   name: aws
   runtime: nodejs12.x
+  environment: ${file(env.yml):${self:custom.stage}}
   apiGateway:
     shouldStartNameWithService: true
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${file(env.yml):${self:custom.stage}.USERS_TABLE}"
 
 plugins:
   - serverless-plugin-typescript
@@ -21,13 +28,20 @@ functions:
   
   createUser:
     handler: auth.create
+  
+  getAccounts:
+    handler: banking.accounts
+    events:
+     - http:
+        path: accounts
+        method: get
 
 resources:
   Resources:
     customersTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: Customers
+        TableName: ${file(env.yml):${self:custom.stage}.USERS_TABLE}
         AttributeDefinitions:
           - AttributeName: Username
             AttributeType: S
@@ -39,9 +53,4 @@ resources:
           WriteCapacityUnits: 1
 
 custom:
-  dynamodb:
-    stages:
-      - test
-    start:
-      inMemory: true
-      migrate: true
+  stage: ${opt:stage, self:provider.stage}

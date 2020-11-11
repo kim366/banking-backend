@@ -22,4 +22,6 @@ export const UNAUTHORIZED_ERROR: APIGatewayProxyResult = {
   body: ''
 }
 
-export const USERS_TABLE = 'Customers';
+export interface TokenPayload  {
+  username: string
+}

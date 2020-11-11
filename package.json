@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "dependencies": {},
+  "dependencies": {
+    "jsonwebtoken": "^8.5.1"
+  },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.64",
+    "@types/jsonwebtoken": "^8.5.0",
     "@types/node": "^14.14.7",
     "serverless-offline": "^6.8.0",
     "serverless-plugin-typescript": "^1.1.9",

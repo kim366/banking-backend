@@ -1,7 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import * as crypto from 'crypto';
-import { BAD_REQUEST_ERROR, hasStringProperty, UNAUTHORIZED_ERROR, USERS_TABLE } from './util';
+import { BAD_REQUEST_ERROR, hasStringProperty, TokenPayload, UNAUTHORIZED_ERROR } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
+import * as jwt from 'jsonwebtoken';
+import { env } from 'process';
 
 interface LoginRequest {
   username: string;
@@ -39,7 +41,7 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
     Username: request.username,
   }
 
-  const user = (await new DocumentClient().get({ TableName: USERS_TABLE, Key: userKey }).promise()).Item as UserSchema | undefined;
+  const user = (await new DocumentClient().get({ TableName: env.USERS_TABLE!, Key: userKey }).promise()).Item as UserSchema | undefined;
 
   if (user) {
     const providedKey = await deriveKey(request.password, user.Salt, user.Iterations);
@@ -51,13 +53,19 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
     return UNAUTHORIZED_ERROR;
   }
 
+  const payload: TokenPayload = {
+    username: request.username
+  };
+
+  const token = jwt.sign(payload, env.SECRET!, { expiresIn: '15 minutes' });
+
   return {
     statusCode: 200,
-    body: 'Signed in successfully!',
+    body: `"${token}"`,
   };
 }
 
-export const create: Handler<LoginRequest, void> = async event => {
+export const create: Handler<LoginRequest, string> = async event => {
   const salt = await new Promise<Buffer>((resolve, reject) =>
     crypto.randomFill(Buffer.allocUnsafe(32), (err, iv) =>
       err ? reject(err) : resolve(iv)));
@@ -71,7 +79,7 @@ export const create: Handler<LoginRequest, void> = async event => {
     Iterations: iterations,
   }
 
-  await new DocumentClient().put({ TableName: USERS_TABLE, Item: user }).promise();
+  await new DocumentClient().put({ TableName: env.USERS_TABLE!, Item: user }).promise();
 
-  console.log(`User ${event.username} successfully created`);
+  return `User ${event.username} successfully created`;
 }
