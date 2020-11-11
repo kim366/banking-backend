@@ -4,10 +4,12 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
+    "faker": "^5.1.0",
     "jsonwebtoken": "^8.5.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.64",
+    "@types/faker": "^5.1.4",
     "@types/jsonwebtoken": "^8.5.0",
     "@types/node": "^14.14.7",
     "serverless-offline": "^6.8.0",

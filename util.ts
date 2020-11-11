@@ -25,3 +25,14 @@ export const UNAUTHORIZED_ERROR: APIGatewayProxyResult = {
 export interface TokenPayload  {
   username: string
 }
+
+export function withCors(response: APIGatewayProxyResult): APIGatewayProxyResult {
+  const headers = response.headers ?? {};
+  response.headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': '*',
+    ...headers,
+  }
+
+  return response;
+}
