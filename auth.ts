@@ -61,7 +61,9 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
 
   return {
     statusCode: 200,
-    body: `"${token}"`,
+    body: JSON.stringify({
+      token
+    })
   };
 }
 

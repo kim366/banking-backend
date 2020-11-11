@@ -22,9 +22,10 @@ functions:
   login:
     handler: auth.login
     events:
-     - http:
-        path: login
-        method: post
+      - http:
+          path: login
+          method: post
+          cors: true
   
   createUser:
     handler: auth.create
@@ -32,9 +33,10 @@ functions:
   getAccounts:
     handler: banking.accounts
     events:
-     - http:
-        path: accounts
-        method: get
+      - http:
+          path: accounts
+          method: get
+          cors: true
 
 resources:
   Resources:
