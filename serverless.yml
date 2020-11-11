@@ -1,0 +1,47 @@
+service: banking
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  apiGateway:
+    shouldStartNameWithService: true
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+
+functions:
+  login:
+    handler: auth.login
+    events:
+     - http:
+        path: login
+        method: post
+  
+  createUser:
+    handler: auth.create
+
+resources:
+  Resources:
+    customersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Customers
+        AttributeDefinitions:
+          - AttributeName: Username
+            AttributeType: S
+        KeySchema:
+          - AttributeName: Username
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+custom:
+  dynamodb:
+    stages:
+      - test
+    start:
+      inMemory: true
+      migrate: true
