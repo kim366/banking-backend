@@ -1,6 +1,7 @@
 type Iban = string;
+type Username = string;
 
-interface AccountSubSchema {
+export interface AccountSubSchema {
   iban: Iban;
   balance: number;
   name: string;
@@ -8,7 +9,7 @@ interface AccountSubSchema {
 }
 
 export interface UserAttributes {
-  username: string;
+  username: Username;
 }
 
 export interface UserSchema extends UserAttributes {
@@ -20,3 +21,11 @@ export interface UserSchema extends UserAttributes {
   lastName: string;
   lastLogin: Date | null;
 };
+
+export interface AccountAttributes {
+  iban: Iban;
+}
+
+export interface AccountSchema extends AccountSubSchema, AccountAttributes {
+  accountHolder: Username;
+}

@@ -5,7 +5,7 @@ import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import * as jwt from 'jsonwebtoken';
 import { env } from 'process';
 import * as faker from 'faker/locale/de_AT';
-import { UserAttributes, UserSchema } from './schemas';
+import { AccountSchema, AccountSubSchema, UserAttributes, UserSchema } from './schemas';
 
 interface LoginRequest {
   username: string;
@@ -84,6 +84,23 @@ export const create: Handler<LoginRequest, string> = async event => {
     
   const iterations = 10000;
 
+  const baseAccounts: AccountSubSchema[] = [
+    {
+      name: 'Hauptkonto',
+      accountType: 'Girokonto',
+      balance: faker.random.number({ min: -1_000, max: 5_000, precision: 0.01 }),
+      iban: faker.finance.iban(false),
+    },
+    {
+      name: 'Sparschwein',
+      accountType: 'Sparkonto',
+      balance: faker.random.number({ min: 200, max: 100_000, precision: 0.01 }),
+      iban: faker.finance.iban(false),
+    }
+  ];
+
+  const accounts: AccountSchema[] = baseAccounts.map(a => ({ ...a, accountHolder: event.username }));
+
   const user: UserSchema = {
     username: event.username,
 
@@ -93,24 +110,41 @@ export const create: Handler<LoginRequest, string> = async event => {
     
     firstName: faker.name.firstName(),
     lastName: faker.name.lastName(),
-    accounts: [
-      {
-        name: 'Hauptkonto',
-        accountType: 'Girokonto',
-        balance: faker.random.number({ min: -1_000, max: 5_000, precision: 0.01 }),
-        iban: faker.finance.iban(false),
-      },
-      {
-        name: 'Sparschwein',
-        accountType: 'Sparkonto',
-        balance: faker.random.number({ min: 200, max: 100_000, precision: 0.01 }),
-        iban: faker.finance.iban(false),
-      }
-    ],
+    accounts: baseAccounts,
     lastLogin: null,
   }
 
-  await new DocumentClient().put({ TableName: env.USERS_TABLE!, Item: user }).promise();
+  await new DocumentClient().transactWrite({
+    TransactItems: [
+      {
+        Put: {
+          TableName: env.USERS_TABLE!,
+          Item: user
+        }
+      },
+      ...accounts.map(a => ({
+        Put: {
+          TableName: env.ACCOUNTS_TABLE!,
+          Item: a,
+        }
+      }))
+    ]
+  }).promise();
 
   return `User ${event.username} successfully created`;
+}
+
+export const createMany: Handler<number, string[]> = async n => {
+  const result: string[] = [];
+
+  for (let i = 0; i < n; ++i) {
+    const user: LoginRequest = {
+      username: `AV${faker.random.number({ min: 100000, max: 999999 })}`,
+      password: 'passwort123'
+    };
+
+    result.push(await create(user, null as any, null as any) as string);
+  }
+
+  return result;
 }

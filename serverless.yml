@@ -29,6 +29,9 @@ functions:
   
   createUser:
     handler: auth.create
+
+  createManyUsers:
+    handler: auth.createMany
   
   getAccounts:
     handler: banking.accounts
@@ -49,6 +52,17 @@ resources:
             AttributeType: S
         KeySchema:
           - AttributeName: username
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+    accountsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${file(env.yml):${self:custom.stage}.ACCOUNTS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: iban
+            AttributeType: S
+        KeySchema:
+          - AttributeName: iban
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
 
