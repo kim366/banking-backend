@@ -1,16 +1,23 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import * as crypto from 'crypto';
-import { BAD_REQUEST_ERROR, hasStringProperty, TokenPayload, UNAUTHORIZED_ERROR } from './util';
+import { BAD_REQUEST_ERROR, TokenPayload, UNAUTHORIZED_ERROR } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import * as jwt from 'jsonwebtoken';
 import { env } from 'process';
 import * as faker from 'faker/locale/de_AT';
 import { AccountSchema, AccountSubSchema, UserAttributes, UserSchema } from './schemas';
+import { Record, String, Static } from 'runtypes';
 
-interface LoginRequest {
-  username: string;
-  password: string;
-}
+const LoginRequest = Record({
+  username: String,
+  password: String,
+});
+
+const EventWithBody = Record({
+  body: String,
+});
+
+type LoginRequest = Static<typeof LoginRequest>
 
 function deriveKey(plaintext: string, salt: Buffer, iterations: number) {
   return new Promise<Buffer>((resolve, reject) =>
@@ -19,13 +26,13 @@ function deriveKey(plaintext: string, salt: Buffer, iterations: number) {
 }
 
 export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
-  if (!event.body) {
+  if (!EventWithBody.guard(event)) {
     return BAD_REQUEST_ERROR;
   }
 
-  const request: unknown = JSON.parse(event.body!);
+  const request: unknown = JSON.parse(event.body);
 
-  if (!hasStringProperty(request, 'username') || !hasStringProperty(request, 'password')) {
+  if (!LoginRequest.guard(request)) {
     return BAD_REQUEST_ERROR;
   }
 

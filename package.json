@@ -5,7 +5,8 @@
   "main": "index.js",
   "dependencies": {
     "faker": "^5.1.0",
-    "jsonwebtoken": "^8.5.1"
+    "jsonwebtoken": "^8.5.1",
+    "runtypes": "^5.0.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.64",
