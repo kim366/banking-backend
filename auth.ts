@@ -1,10 +1,11 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import * as crypto from 'crypto';
-import { BAD_REQUEST_ERROR, hasStringProperty, TokenPayload, UNAUTHORIZED_ERROR, withCors } from './util';
+import { BAD_REQUEST_ERROR, hasStringProperty, TokenPayload, UNAUTHORIZED_ERROR } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import * as jwt from 'jsonwebtoken';
 import { env } from 'process';
 import * as faker from 'faker/locale/de_AT';
+import { UserAttributes, UserSchema } from './schemas';
 
 interface LoginRequest {
   username: string;
@@ -34,12 +35,16 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
 
   const client = new DocumentClient();
 
-  const user = (await client.get({ TableName: env.USERS_TABLE!, Key: userKey }).promise()).Item as UserSchema | undefined;
+  const user = (await client.get({
+    TableName: env.USERS_TABLE!,
+    Key: userKey,
+    ProjectionExpression: 'DerivedKey, Salt, Iterations, FirstName, LastLogin, LastName'
+  }).promise()).Item as Pick<UserSchema, 'DerivedKey' | 'Salt' | 'Iterations' | 'FirstName' | 'LastLogin' | 'LastName'> | undefined;
 
   if (user) {
     const providedKey = await deriveKey(request.password, user.Salt, user.Iterations);
 
-    if (!user.Key.equals(providedKey)) {
+    if (!user.DerivedKey.equals(providedKey)) {
       return UNAUTHORIZED_ERROR;
     }
   } else  {
@@ -82,13 +87,26 @@ export const create: Handler<LoginRequest, string> = async event => {
   const user: UserSchema = {
     Username: event.username,
 
-    Key: await deriveKey(event.password, salt, iterations),
+    DerivedKey: await deriveKey(event.password, salt, iterations),
     Salt: salt,
     Iterations: iterations,
     
     FirstName: faker.name.firstName(),
     LastName: faker.name.lastName(),
-    Accounts: [],
+    Accounts: [
+      {
+        Name: 'Hauptkonto',
+        AccountType: 'Girokonto',
+        Balance: faker.random.number({ min: -1_000, max: 5_000, precision: 0.01 }),
+        Iban: faker.finance.iban(false),
+      },
+      {
+        Name: 'Sparschwein',
+        AccountType: 'Sparkonto',
+        Balance: faker.random.number({ min: 200, max: 100_000, precision: 0.01 }),
+        Iban: faker.finance.iban(false),
+      }
+    ],
     LastLogin: null,
   }
 

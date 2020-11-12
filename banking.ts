@@ -2,8 +2,10 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda
 import * as jwt from 'jsonwebtoken';
 import { env } from 'process';
 import { TokenPayload, UNAUTHORIZED_ERROR } from './util';
+import { DocumentClient } from 'aws-sdk/clients/dynamodb';
+import { UserAttributes, UserSchema } from './schemas';
 
-export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (event, context) => {
+export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
   const bearerHeader = event.headers.Authorization;
 
   console.log(bearerHeader)
@@ -18,14 +20,26 @@ export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = as
     return UNAUTHORIZED_ERROR;
   }
 
+  let payload: TokenPayload;
+
   try {
-    const payload = jwt.verify(token, env.SECRET!) as TokenPayload;
-    
-    return {
-      statusCode: 204,
-      body: '',
-    }
+    payload = jwt.verify(token, env.SECRET!) as TokenPayload;
   } catch (e) {
     return UNAUTHORIZED_ERROR;
   }
-}
+
+  const userKey: UserAttributes = {
+    Username: payload.username,
+  }
+
+  const user = (await new DocumentClient().get({
+    TableName: env.USERS_TABLE!,
+    Key: userKey,
+    ProjectionExpression: 'Accounts'
+  }).promise()).Item as Pick<UserSchema, 'Accounts'>;
+  
+  return {
+    statusCode: 200,
+    body: JSON.stringify(user.Accounts),
+  }
+};

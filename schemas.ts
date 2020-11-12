@@ -1,24 +1,21 @@
 type Iban = string;
 
-interface AccountAttributes {
+interface AccountSubSchema {
   Iban: Iban;
-}
-
-interface AccountSchema extends AccountAttributes {
   Balance: number;
   Name: string;
   AccountType: string;
 }
 
-interface UserAttributes {
+export interface UserAttributes {
   Username: string;
 }
 
-interface UserSchema extends UserAttributes {
-  Key: Buffer;
+export interface UserSchema extends UserAttributes {
+  DerivedKey: Buffer;
   Salt: Buffer;
   Iterations: number;
-  Accounts: Iban[];
+  Accounts: AccountSubSchema[];
   FirstName: string;
   LastName: string;
   LastLogin: Date | null;
