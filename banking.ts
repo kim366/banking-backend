@@ -29,17 +29,17 @@ export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = as
   }
 
   const userKey: UserAttributes = {
-    Username: payload.username,
+    username: payload.username,
   }
 
   const user = (await new DocumentClient().get({
     TableName: env.USERS_TABLE!,
     Key: userKey,
-    ProjectionExpression: 'Accounts'
-  }).promise()).Item as Pick<UserSchema, 'Accounts'>;
+    ProjectionExpression:                'accounts'
+  }).promise()).Item as Pick<UserSchema, 'accounts'>;
   
   return {
     statusCode: 200,
-    body: JSON.stringify(user.Accounts),
+    body: JSON.stringify(user.accounts),
   }
 };

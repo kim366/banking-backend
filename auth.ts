@@ -30,7 +30,7 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
   }
 
   const userKey: UserAttributes = {
-    Username: request.username,
+    username: request.username,
   }
 
   const client = new DocumentClient();
@@ -38,13 +38,13 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
   const user = (await client.get({
     TableName: env.USERS_TABLE!,
     Key: userKey,
-    ProjectionExpression: 'DerivedKey, Salt, Iterations, FirstName, LastLogin, LastName'
-  }).promise()).Item as Pick<UserSchema, 'DerivedKey' | 'Salt' | 'Iterations' | 'FirstName' | 'LastLogin' | 'LastName'> | undefined;
+    ProjectionExpression:                'derivedKey  ,  salt  ,  iterations  ,  firstName  ,  lastLogin  ,  lastName'
+  }).promise()).Item as Pick<UserSchema, 'derivedKey' | 'salt' | 'iterations' | 'firstName' | 'lastLogin' | 'lastName'> | undefined;
 
   if (user) {
-    const providedKey = await deriveKey(request.password, user.Salt, user.Iterations);
+    const providedKey = await deriveKey(request.password, user.salt, user.iterations);
 
-    if (!user.DerivedKey.equals(providedKey)) {
+    if (!user.derivedKey.equals(providedKey)) {
       return UNAUTHORIZED_ERROR;
     }
   } else  {
@@ -56,7 +56,7 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
   client.update({
     TableName: env.USERS_TABLE!,
     Key: userKey,
-    UpdateExpression: 'set LastLogin = :now',
+    UpdateExpression: 'set lastLogin = :now',
     ExpressionAttributeValues: { ':now': now },
   }).promise();
 
@@ -70,9 +70,9 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
     statusCode: 200,
     body: JSON.stringify({
       token,
-      lastLogin: user.LastLogin ?? now,
-      firstName: user.FirstName,
-      lastName: user.LastName,
+      lastLogin: user.lastLogin ?? now,
+      firstName: user.firstName,
+      lastName: user.lastName,
     })
   };
 }
@@ -85,29 +85,29 @@ export const create: Handler<LoginRequest, string> = async event => {
   const iterations = 10000;
 
   const user: UserSchema = {
-    Username: event.username,
+    username: event.username,
 
-    DerivedKey: await deriveKey(event.password, salt, iterations),
-    Salt: salt,
-    Iterations: iterations,
+    derivedKey: await deriveKey(event.password, salt, iterations),
+    salt: salt,
+    iterations: iterations,
     
-    FirstName: faker.name.firstName(),
-    LastName: faker.name.lastName(),
-    Accounts: [
+    firstName: faker.name.firstName(),
+    lastName: faker.name.lastName(),
+    accounts: [
       {
-        Name: 'Hauptkonto',
-        AccountType: 'Girokonto',
-        Balance: faker.random.number({ min: -1_000, max: 5_000, precision: 0.01 }),
-        Iban: faker.finance.iban(false),
+        name: 'Hauptkonto',
+        accountType: 'Girokonto',
+        balance: faker.random.number({ min: -1_000, max: 5_000, precision: 0.01 }),
+        iban: faker.finance.iban(false),
       },
       {
-        Name: 'Sparschwein',
-        AccountType: 'Sparkonto',
-        Balance: faker.random.number({ min: 200, max: 100_000, precision: 0.01 }),
-        Iban: faker.finance.iban(false),
+        name: 'Sparschwein',
+        accountType: 'Sparkonto',
+        balance: faker.random.number({ min: 200, max: 100_000, precision: 0.01 }),
+        iban: faker.finance.iban(false),
       }
     ],
-    LastLogin: null,
+    lastLogin: null,
   }
 
   await new DocumentClient().put({ TableName: env.USERS_TABLE!, Item: user }).promise();
