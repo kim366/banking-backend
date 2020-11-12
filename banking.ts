@@ -40,6 +40,8 @@ export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = as
   
   return {
     statusCode: 200,
-    body: JSON.stringify(user.accounts),
+    body: JSON.stringify({
+      accounts: user.accounts,
+    }),
   }
 };
