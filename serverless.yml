@@ -40,6 +40,14 @@ functions:
           path: accounts
           method: get
           cors: true
+  
+  performTransaction:
+    handler: banking.performTransaction
+    events:
+      - http:
+          path: transaction
+          method: post
+          cors: true
 
 resources:
   Resources:
@@ -54,6 +62,7 @@ resources:
           - AttributeName: username
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
+
     accountsTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -64,6 +73,22 @@ resources:
         KeySchema:
           - AttributeName: iban
             KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    transactionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${file(env.yml):${self:custom.stage}.TRANSACTIONS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: iban
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+        KeySchema:
+          - AttributeName: iban
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
 
 custom:

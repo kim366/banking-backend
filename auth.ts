@@ -1,23 +1,14 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import * as crypto from 'crypto';
-import { BAD_REQUEST_ERROR, TokenPayload, UNAUTHORIZED_ERROR } from './util';
+import { BAD_REQUEST_ERROR, TokenPayload, UNAUTHORIZED_ERROR, EventWithBody } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import * as jwt from 'jsonwebtoken';
 import { env } from 'process';
 import * as faker from 'faker/locale/de_AT';
 import { AccountSchema, AccountSubSchema, UserAttributes, UserSchema } from './schemas';
 import { Record, String, Static } from 'runtypes';
+import { LoginRequest } from './guards';
 
-const LoginRequest = Record({
-  username: String,
-  password: String,
-});
-
-const EventWithBody = Record({
-  body: String,
-});
-
-type LoginRequest = Static<typeof LoginRequest>
 
 function deriveKey(plaintext: string, salt: Buffer, iterations: number) {
   return new Promise<Buffer>((resolve, reject) =>
@@ -106,7 +97,10 @@ export const create: Handler<LoginRequest, string> = async event => {
     }
   ];
 
-  const accounts: AccountSchema[] = baseAccounts.map(a => ({ ...a, accountHolder: event.username }));
+  const firstName = faker.name.firstName();
+  const lastName = faker.name.lastName();
+
+  const accounts: AccountSchema[] = baseAccounts.map((a, i) => ({ iban: a.iban, username: event.username, firstName, lastName, index: i }));
 
   const user: UserSchema = {
     username: event.username,
@@ -115,8 +109,8 @@ export const create: Handler<LoginRequest, string> = async event => {
     salt: salt,
     iterations: iterations,
     
-    firstName: faker.name.firstName(),
-    lastName: faker.name.lastName(),
+    firstName,
+    lastName,
     accounts: baseAccounts,
     lastLogin: null,
   }

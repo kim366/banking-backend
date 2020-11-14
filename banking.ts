@@ -1,30 +1,14 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
-import * as jwt from 'jsonwebtoken';
 import { env } from 'process';
-import { TokenPayload, UNAUTHORIZED_ERROR } from './util';
+import { BAD_REQUEST_ERROR, EventWithBody, getTokenPayload, UNAUTHORIZED_ERROR } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import { UserAttributes, UserSchema } from './schemas';
+import { AccountAttributes, AccountSchema, TransactionAttributes, TransactionSchema, UserAttributes, UserSchema } from './schemas';
+import { TransactionRequest } from './guards';
 
 export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
-  const bearerHeader = event.headers.Authorization;
+  const payload = getTokenPayload(event);
 
-  console.log(bearerHeader)
-
-  if (!bearerHeader) {
-    return UNAUTHORIZED_ERROR;
-  }
-
-  const [bearer, token] = bearerHeader.split(' ');
-
-  if (bearer !== 'Bearer') {
-    return UNAUTHORIZED_ERROR;
-  }
-
-  let payload: TokenPayload;
-
-  try {
-    payload = jwt.verify(token, env.SECRET!) as TokenPayload;
-  } catch (e) {
+  if (!payload) {
     return UNAUTHORIZED_ERROR;
   }
 
@@ -45,3 +29,124 @@ export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = as
     }),
   }
 };
+
+export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
+  const payload = getTokenPayload(event);
+  
+  if (!payload) {
+    return UNAUTHORIZED_ERROR;
+  }
+
+  if (!EventWithBody.guard(event)) {
+    return BAD_REQUEST_ERROR;
+  }
+  
+  const request: unknown = JSON.parse(event.body);
+  
+  if (!TransactionRequest.guard(request)) {
+    return BAD_REQUEST_ERROR;
+  }
+
+  if (request.iban === request.complementaryIban) {
+    return BAD_REQUEST_ERROR;
+  }
+
+  const client = new DocumentClient();
+
+  const ibanKey: AccountAttributes = {
+    iban: request.iban,
+  }
+  const otherIbanKey: AccountAttributes = {
+    iban: request.complementaryIban,
+  }
+
+  const fetchedAccounts = (await client.batchGet({
+    RequestItems: {
+      [env.ACCOUNTS_TABLE!]: {
+        Keys: [ibanKey, otherIbanKey],
+      }
+    }
+  }).promise()).Responses?.[env.ACCOUNTS_TABLE!] as AccountSchema[] | undefined;
+
+  if (!fetchedAccounts || fetchedAccounts.length < 2) {
+    return BAD_REQUEST_ERROR;
+  }
+
+  let [account, complementaryAccount] = fetchedAccounts;
+  if (account.iban !== request.iban) {
+    [complementaryAccount, account] = fetchedAccounts;
+  }
+
+  if (account.username !== payload.username) {
+    return UNAUTHORIZED_ERROR;
+  }
+
+  const transaction: TransactionSchema = {
+    amount: -request.amount,
+    iban: request.iban,
+    complementaryIban: request.complementaryIban,
+    complementaryName: request.complementaryName,
+    text: request.text,
+    textType: request.textType,
+    timestamp: request.timestamp,
+    type: request.type,
+  };
+
+  const complementaryTransaction: TransactionSchema = {
+    ...transaction,
+    amount: request.amount,
+    iban: request.complementaryIban,
+    complementaryIban: request.iban,
+    complementaryName: `${account.firstName} ${account.lastName}`,
+  };
+
+  const userKey: UserAttributes = {
+    username: payload.username,
+  };
+
+  const complementaryUserKey: UserAttributes = {
+    username: complementaryAccount.username,
+  };
+
+  await client.transactWrite({
+    TransactItems: [
+      {
+        Put: {
+          TableName: env.TRANSACTIONS_TABLE!,
+          Item: transaction,
+        }
+      },
+      {
+        Put: {
+          TableName: env.TRANSACTIONS_TABLE!,
+          Item: complementaryTransaction
+        }
+      },
+      {
+        Update: {
+          TableName: env.USERS_TABLE!,
+          Key: userKey,
+          UpdateExpression: `add accounts[${account.index}].balance :amount`,
+          ExpressionAttributeValues: {
+            ':amount': -request.amount,
+          }
+        }
+      },
+      {
+        Update: {
+          TableName: env.USERS_TABLE!,
+          Key: complementaryUserKey,
+          UpdateExpression: `add accounts[${complementaryAccount.index}].balance :amount`,
+          ExpressionAttributeValues: {
+            ':amount': request.amount,
+          }
+        }
+      }
+    ]
+  }).promise();
+
+  return {
+    statusCode: 204,
+    body: '',
+  }
+}

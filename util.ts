@@ -1,16 +1,7 @@
-import { APIGatewayProxyResult } from 'aws-lambda';
-
-export function isObject(obj: unknown): obj is object {
-  return typeof obj === 'object' && obj !== null;
-}
-
-export function hasOwnProperty<X extends {}, Y extends PropertyKey>(obj: unknown, prop: Y): obj is X & Record<Y, unknown> {
-  return isObject(obj) && Object.hasOwnProperty.call(obj, prop)
-}
-
-export function hasStringProperty<X extends {}, Y extends PropertyKey>(obj: unknown, prop: Y): obj is X & Record<Y, string> {
-  return hasOwnProperty(obj, prop) && typeof obj[prop] === 'string';
-}
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { env } from 'process';
+import * as jwt from 'jsonwebtoken';
+import { Record, String } from 'runtypes';
 
 export const BAD_REQUEST_ERROR: APIGatewayProxyResult = {
   statusCode: 400,
@@ -26,13 +17,33 @@ export interface TokenPayload  {
   username: string
 }
 
-export function withCors(response: APIGatewayProxyResult): APIGatewayProxyResult {
-  const headers = response.headers ?? {};
-  response.headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': '*',
-    ...headers,
+export function getTokenPayload(event: APIGatewayProxyEvent): TokenPayload | null {
+  const bearerHeader = event.headers.Authorization;
+
+  if (!bearerHeader) {
+    return null;
   }
 
-  return response;
+  const authorizationWords = bearerHeader.split(' ');
+
+  if (authorizationWords.length !== 2) {
+    return null;
+  }
+
+  const [bearer, token] = authorizationWords;
+
+  if (bearer !== 'Bearer') {
+    return null;
+  }
+
+  try {
+    return jwt.verify(token, env.SECRET!) as TokenPayload;
+  } catch (e) {
+    return null;
+  }
 }
+
+export const EventWithBody = Record({
+  body: String,
+});
+
