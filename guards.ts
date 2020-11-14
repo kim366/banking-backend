@@ -25,3 +25,6 @@ export const TransactionRequest = Record({
 
 export type TransactionRequest = Static<typeof TransactionRequest>;
 
+export const EventWithBody = Record({
+  body: String,
+});

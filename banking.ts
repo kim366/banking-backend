@@ -1,9 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import { env } from 'process';
-import { BAD_REQUEST_ERROR, EventWithBody, getTokenPayload, UNAUTHORIZED_ERROR } from './util';
+import { BAD_REQUEST_ERROR, getTokenPayload, UNAUTHORIZED_ERROR } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import { AccountAttributes, AccountSchema, TransactionAttributes, TransactionSchema, UserAttributes, UserSchema } from './schemas';
-import { TransactionRequest } from './guards';
+import { TransactionRequest, EventWithBody } from './guards';
 
 export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
   const payload = getTokenPayload(event);

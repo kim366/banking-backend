@@ -42,8 +42,3 @@ export function getTokenPayload(event: APIGatewayProxyEvent): TokenPayload | nul
     return null;
   }
 }
-
-export const EventWithBody = Record({
-  body: String,
-});
-

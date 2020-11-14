@@ -1,13 +1,12 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import * as crypto from 'crypto';
-import { BAD_REQUEST_ERROR, TokenPayload, UNAUTHORIZED_ERROR, EventWithBody } from './util';
+import { BAD_REQUEST_ERROR, TokenPayload, UNAUTHORIZED_ERROR } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import * as jwt from 'jsonwebtoken';
 import { env } from 'process';
 import * as faker from 'faker/locale/de_AT';
 import { AccountSchema, AccountSubSchema, UserAttributes, UserSchema } from './schemas';
-import { Record, String, Static } from 'runtypes';
-import { LoginRequest } from './guards';
+import { LoginRequest, EventWithBody } from './guards';
 
 
 function deriveKey(plaintext: string, salt: Buffer, iterations: number) {
