@@ -49,6 +49,14 @@ functions:
           method: post
           cors: true
 
+  listTransactions:
+    handler: banking.listTransactions
+    events:
+      - http:
+          path: transactions/{iban}
+          method: post
+          cors: true
+
 resources:
   Resources:
     customersTable:

@@ -1,4 +1,4 @@
-import { Literal, Number, Record, Static, String, Union } from 'runtypes';
+import { Literal, Number, Partial, Record, Static, String, Union } from 'runtypes';
 
 export const LoginRequest = Record({
   username: String,
@@ -28,3 +28,13 @@ export type TransactionRequest = Static<typeof TransactionRequest>;
 export const EventWithBody = Record({
   body: String,
 });
+
+export const TransactionListRequest = Record({
+  n: Number,
+}).And(Partial({
+  type: TransactionType,
+  exclusiveDate: DateString,
+}));
+
+export type TransactionListRequest = Static<typeof TransactionListRequest>;
+

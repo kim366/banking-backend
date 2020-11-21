@@ -3,7 +3,8 @@ import { env } from 'process';
 import { BAD_REQUEST_ERROR, getTokenPayload, UNAUTHORIZED_ERROR } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import { AccountAttributes, AccountSchema, TransactionAttributes, TransactionSchema, UserAttributes, UserSchema } from './schemas';
-import { TransactionRequest, EventWithBody } from './guards';
+import { TransactionRequest, EventWithBody, TransactionListRequest } from './guards';
+import { request } from 'http';
 
 export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
   const payload = getTokenPayload(event);
@@ -149,4 +150,72 @@ export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyRe
     statusCode: 204,
     body: '',
   }
+}
+
+export const listTransactions: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
+  const iban = event.pathParameters!.iban;
+
+  const payload = getTokenPayload(event);
+  
+  if (!payload) {
+    return UNAUTHORIZED_ERROR;
+  }
+
+  if (!EventWithBody.guard(event)) {
+    return BAD_REQUEST_ERROR;
+  }
+
+  const request: unknown = JSON.parse(event.body);
+
+  if (!TransactionListRequest.guard(request)) {
+    return BAD_REQUEST_ERROR;
+  }
+
+  const client = new DocumentClient();
+
+  const ibanKey: AccountAttributes = {
+    iban,
+  }
+
+  const fetchedAccount = (await client.get({
+    TableName: env.ACCOUNTS_TABLE!,
+    Key: ibanKey
+  }).promise()).Item as AccountSchema | undefined;
+
+  if (!fetchedAccount || fetchedAccount.username !== payload.username) {
+    return UNAUTHORIZED_ERROR;
+  }
+
+  interface TransactionQueryOutput extends DocumentClient.QueryOutput {
+    Items?: TransactionSchema[];
+    LastEvaluatedKey?: TransactionAttributes;
+  }
+
+  const transactionParams: DocumentClient.QueryInput = {
+    TableName: env.TRANSACTIONS_TABLE!,
+    KeyConditionExpression: 'iban = :iban',
+    Limit: request.n,
+    ExpressionAttributeValues: {
+      ':iban': iban,
+    }
+  };
+
+  if (request.exclusiveDate) {
+    const exclusiveStartKey: TransactionAttributes = {
+      iban: iban,
+      timestamp: request.exclusiveDate,
+    };
+
+    transactionParams.ExclusiveStartKey = exclusiveStartKey;
+  }
+
+  const transactions = (await client.query(transactionParams).promise()) as TransactionQueryOutput;
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      transactions: transactions.Items,
+      lastDate: transactions.LastEvaluatedKey?.timestamp,
+    }),
+  };
 }
