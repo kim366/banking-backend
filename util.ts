@@ -3,15 +3,15 @@ import { env } from 'process';
 import * as jwt from 'jsonwebtoken';
 import { Record, String } from 'runtypes';
 
-export const BAD_REQUEST_ERROR: APIGatewayProxyResult = {
+export const BAD_REQUEST_ERROR: APIGatewayProxyResult = withCors({
   statusCode: 400,
   body: ''
-}
+});
 
-export const UNAUTHORIZED_ERROR: APIGatewayProxyResult = {
+export const UNAUTHORIZED_ERROR: APIGatewayProxyResult = withCors({
   statusCode: 401,
   body: ''
-}
+});
 
 export interface TokenPayload  {
   username: string
@@ -41,4 +41,15 @@ export function getTokenPayload(event: APIGatewayProxyEvent): TokenPayload | nul
   } catch (e) {
     return null;
   }
+}
+
+export function withCors(response: APIGatewayProxyResult): APIGatewayProxyResult {
+  const headers = response.headers ?? {};
+  response.headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': '*',
+    ...headers,
+  };
+
+  return response;
 }

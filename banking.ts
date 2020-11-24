@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import { env } from 'process';
-import { BAD_REQUEST_ERROR, getTokenPayload, UNAUTHORIZED_ERROR } from './util';
+import { BAD_REQUEST_ERROR, getTokenPayload, UNAUTHORIZED_ERROR, withCors } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import { AccountAttributes, AccountSchema, TransactionAttributes, TransactionSchema, UserAttributes, UserSchema } from './schemas';
 import { TransactionRequest, EventWithBody, TransactionListRequest } from './guards';
@@ -23,12 +23,12 @@ export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = as
     ProjectionExpression:                'accounts'
   }).promise()).Item as Pick<UserSchema, 'accounts'>;
   
-  return {
+  return withCors({
     statusCode: 200,
     body: JSON.stringify({
       accounts: user.accounts,
     }),
-  }
+  });
 };
 
 export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
@@ -146,10 +146,10 @@ export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyRe
     ]
   }).promise();
 
-  return {
+  return withCors({
     statusCode: 204,
     body: '',
-  }
+  });
 }
 
 export const listTransactions: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
@@ -211,11 +211,11 @@ export const listTransactions: Handler<APIGatewayProxyEvent, APIGatewayProxyResu
 
   const transactions = (await client.query(transactionParams).promise()) as TransactionQueryOutput;
 
-  return {
+  return withCors({
     statusCode: 200,
     body: JSON.stringify({
       transactions: transactions.Items,
       lastDate: transactions.LastEvaluatedKey?.timestamp,
     }),
-  };
+  });
 }

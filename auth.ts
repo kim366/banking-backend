@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import * as crypto from 'crypto';
-import { BAD_REQUEST_ERROR, TokenPayload, UNAUTHORIZED_ERROR } from './util';
+import { BAD_REQUEST_ERROR, TokenPayload, UNAUTHORIZED_ERROR, withCors } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import * as jwt from 'jsonwebtoken';
 import { env } from 'process';
@@ -35,8 +35,7 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
   const user = (await client.get({
     TableName: env.USERS_TABLE!,
     Key: userKey,
-    ProjectionExpression:                'derivedKey  ,  salt  ,  iterations  ,  firstName  ,  lastLogin  ,  lastName'
-  }).promise()).Item as Pick<UserSchema, 'derivedKey' | 'salt' | 'iterations' | 'firstName' | 'lastLogin' | 'lastName'> | undefined;
+  }).promise()).Item as UserSchema | undefined;
 
   if (user) {
     const providedKey = await deriveKey(request.password, user.salt, user.iterations);
@@ -63,15 +62,16 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
 
   const token = jwt.sign(payload, env.SECRET!, { expiresIn: '15 minutes' });
 
-  return {
+  return withCors({
     statusCode: 200,
     body: JSON.stringify({
       token,
       lastLogin: user.lastLogin ?? now,
       firstName: user.firstName,
       lastName: user.lastName,
-    })
-  };
+      accounts: user.accounts.map(a => a.iban),
+    }),
+  });
 }
 
 export const create: Handler<LoginRequest, string> = async event => {
