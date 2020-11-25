@@ -4,7 +4,6 @@ import { createBadRequestError, getTokenPayload, createUnauthorizedError, withCo
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import { AccountAttributes, AccountSchema, TransactionAttributes, TransactionSchema, UserAttributes, UserSchema } from './schemas';
 import { TransactionRequest, EventWithBody, TransactionListRequest } from './guards';
-import { request } from 'http';
 
 export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
   const payload = getTokenPayload(event);
@@ -31,7 +30,7 @@ export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = as
   });
 };
 
-export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
+async function verifyTransaction(event: APIGatewayProxyEvent, client: DocumentClient) {
   const payload = getTokenPayload(event);
   
   if (!payload) {
@@ -51,8 +50,6 @@ export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyRe
   if (request.iban === request.complementaryIban) {
     return createBadRequestError('cannot transfer to same account');
   }
-
-  const client = new DocumentClient();
 
   const ibanKey: AccountAttributes = {
     iban: request.iban,
@@ -82,14 +79,35 @@ export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyRe
     return createUnauthorizedError('account not associated with user');
   }
 
-  const transaction: TransactionSchema = {
-    amount: -request.amount,
+  return { account, complementaryAccount, request, payload };
+}
+
+function isError(verification: unknown): verification is APIGatewayProxyResult {
+  return Object.hasOwnProperty.call(verification, 'statusCode');
+}
+
+export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
+  const client = new DocumentClient();
+  const verification = await verifyTransaction(event, client);
+
+  if (isError(verification)) {
+    return verification;
+  }
+
+  const { account, complementaryAccount, request, payload } = verification;
+
+  const transactionKey: TransactionAttributes = {
     iban: request.iban,
+    timestamp: request.timestamp,
+  };
+
+  const transaction: TransactionSchema = {
+    ...transactionKey,
+    amount: -request.amount,
     complementaryIban: request.complementaryIban,
     complementaryName: request.complementaryName,
     text: request.text,
     textType: request.textType,
-    timestamp: request.timestamp,
     type: request.type,
   };
 
@@ -141,6 +159,12 @@ export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyRe
           ExpressionAttributeValues: {
             ':amount': request.amount,
           }
+        }
+      },
+      {
+        Delete: {
+          Key: transactionKey,
+          TableName: env.PENDING_TRANSACTIONS_TABLE!,
         }
       }
     ]
@@ -219,3 +243,63 @@ export const listTransactions: Handler<APIGatewayProxyEvent, APIGatewayProxyResu
     }),
   });
 }
+
+export const deleteTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
+  const client = new DocumentClient();
+  const verification = await verifyTransaction(event, client);
+
+  if (isError(verification)) {
+    return verification;
+  }
+
+  const { request } = verification;
+
+  const transactionKey: TransactionAttributes =  {
+    iban: request.iban,
+    timestamp: request.timestamp,
+  };
+
+  client.delete({
+    Key: transactionKey,
+    TableName: env.PENDING_TRANSACTIONS_TABLE!,
+
+  }).promise();
+
+  return {
+    statusCode: 202,
+    body: '',
+  };
+};
+
+export const saveTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
+  const client = new DocumentClient();
+  const verification = await verifyTransaction(event, client);
+
+  if (isError(verification)) {
+    return verification;
+  }
+
+  const { request } = verification;
+  
+  const transaction: TransactionSchema = {
+    iban: request.iban,
+    timestamp: request.timestamp,
+    amount: request.amount,
+    complementaryIban: request.complementaryIban,
+    complementaryName: request.complementaryName,
+    text: request.text,
+    textType: request.textType,
+    type: request.type,
+  };
+
+  const savedTransaction = await client.put({
+    Item: transaction,
+    TableName: env.PENDING_TRANSACTIONS_TABLE!,
+    ReturnValues: 'ALL_OLD',
+  }).promise();
+
+  return {
+    statusCode: savedTransaction.Attributes ? 204 : 201,
+    body: '',
+  };
+};

@@ -38,6 +38,16 @@ provider:
         - dynamodb:Query
         - dynamodb:UpdateItem
       Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${file(env.yml):${self:custom.stage}.TRANSACTIONS_TABLE}"
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:UpdateItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${file(env.yml):${self:custom.stage}.PENDING_TRANSACTIONS_TABLE}"
 
 plugins:
   - serverless-plugin-typescript
@@ -72,6 +82,22 @@ functions:
       - http:
           path: transaction
           method: post
+          cors: true
+
+  saveTransaction:
+    handler: banking.saveTransaction
+    events:
+      - http:
+          path: transaction
+          method: put
+          cors: true
+
+  deleteTransaction:
+    handler: banking.deleteTransaction
+    events:
+      - http:
+          path: transaction
+          method: delete
           cors: true
 
   listTransactions:
@@ -112,6 +138,22 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: ${file(env.yml):${self:custom.stage}.TRANSACTIONS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: iban
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+        KeySchema:
+          - AttributeName: iban
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    pendingTransactionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${file(env.yml):${self:custom.stage}.PENDING_TRANSACTIONS_TABLE}
         AttributeDefinitions:
           - AttributeName: iban
             AttributeType: S
