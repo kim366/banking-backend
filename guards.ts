@@ -9,8 +9,8 @@ export type LoginRequest = Static<typeof LoginRequest>;
 
 export const DateString = String.withConstraint(s => !isNaN(new Date(s).getTime()));
 
-export const TransactionTextType = Union(Literal('Verwendungszweck'), Literal('Zahlungsreferenz'), Literal('Senderreferenz'));
-export const TransactionType = Union(Literal('Dauerauftrag'), Literal('Eilauftrag'), Literal('Eigenuebertragung'));
+export const TransactionTextType = Union(Literal('Verwendungszweck'), Literal('Zahlungsreferenz'));
+export const TransactionType = Union(Literal('Dauerauftrag'), Literal('Eilauftrag'), Literal('Eigenuebertragung'), Literal(''));
 
 export const TransactionRequest = Record({
   timestamp: DateString,
