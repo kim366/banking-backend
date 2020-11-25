@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import * as crypto from 'crypto';
-import { BAD_REQUEST_ERROR, TokenPayload, UNAUTHORIZED_ERROR, withCors } from './util';
+import { createBadRequestError, TokenPayload, createUnauthorizedError, withCors } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import * as jwt from 'jsonwebtoken';
 import { env } from 'process';
@@ -17,13 +17,13 @@ function deriveKey(plaintext: string, salt: Buffer, iterations: number) {
 
 export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async event => {
   if (!EventWithBody.guard(event)) {
-    return BAD_REQUEST_ERROR;
+    return createBadRequestError('no body provided');
   }
 
   const request: unknown = JSON.parse(event.body);
 
   if (!LoginRequest.guard(request)) {
-    return BAD_REQUEST_ERROR;
+    return createBadRequestError('invalid form');
   }
 
   const userKey: UserAttributes = {
@@ -41,10 +41,10 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
     const providedKey = await deriveKey(request.password, user.salt, user.iterations);
 
     if (!user.derivedKey.equals(providedKey)) {
-      return UNAUTHORIZED_ERROR;
+      return createUnauthorizedError('invalid credentials');
     }
   } else  {
-    return UNAUTHORIZED_ERROR;
+    return createUnauthorizedError('invalid credentials');
   }
 
   const now = new Date().toISOString();
@@ -60,7 +60,7 @@ export const login: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async
     username: request.username
   };
 
-  const token = jwt.sign(payload, env.SECRET!, { expiresIn: '15 minutes' });
+  const token = jwt.sign(payload, env.SECRET!);
 
   return withCors({
     statusCode: 200,

@@ -1,16 +1,15 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { env } from 'process';
 import * as jwt from 'jsonwebtoken';
-import { Record, String } from 'runtypes';
 
-export const BAD_REQUEST_ERROR: APIGatewayProxyResult = withCors({
+export const createBadRequestError = (msg: string): APIGatewayProxyResult => withCors({
   statusCode: 400,
-  body: ''
+  body: JSON.stringify({ error: msg }),
 });
 
-export const UNAUTHORIZED_ERROR: APIGatewayProxyResult = withCors({
+export const createUnauthorizedError = (msg: string): APIGatewayProxyResult => withCors({
   statusCode: 401,
-  body: ''
+  body: JSON.stringify({ error: msg }),
 });
 
 export interface TokenPayload  {

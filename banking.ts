@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
 import { env } from 'process';
-import { BAD_REQUEST_ERROR, getTokenPayload, UNAUTHORIZED_ERROR, withCors } from './util';
+import { createBadRequestError, getTokenPayload, createUnauthorizedError, withCors } from './util';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import { AccountAttributes, AccountSchema, TransactionAttributes, TransactionSchema, UserAttributes, UserSchema } from './schemas';
 import { TransactionRequest, EventWithBody, TransactionListRequest } from './guards';
@@ -10,7 +10,7 @@ export const accounts: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = as
   const payload = getTokenPayload(event);
 
   if (!payload) {
-    return UNAUTHORIZED_ERROR;
+    return createUnauthorizedError('invalid token');
   }
 
   const userKey: UserAttributes = {
@@ -35,21 +35,21 @@ export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyRe
   const payload = getTokenPayload(event);
   
   if (!payload) {
-    return UNAUTHORIZED_ERROR;
+    return createUnauthorizedError('invalid token');
   }
 
   if (!EventWithBody.guard(event)) {
-    return BAD_REQUEST_ERROR;
+    return createBadRequestError('no body provided');
   }
   
   const request: unknown = JSON.parse(event.body);
   
   if (!TransactionRequest.guard(request)) {
-    return BAD_REQUEST_ERROR;
+    return createBadRequestError('invalid form');
   }
 
   if (request.iban === request.complementaryIban) {
-    return BAD_REQUEST_ERROR;
+    return createBadRequestError('cannot transfer to same account');
   }
 
   const client = new DocumentClient();
@@ -70,7 +70,7 @@ export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyRe
   }).promise()).Responses?.[env.ACCOUNTS_TABLE!] as AccountSchema[] | undefined;
 
   if (!fetchedAccounts || fetchedAccounts.length < 2) {
-    return BAD_REQUEST_ERROR;
+    return createBadRequestError('an account was not found');
   }
 
   let [account, complementaryAccount] = fetchedAccounts;
@@ -79,7 +79,7 @@ export const performTransaction: Handler<APIGatewayProxyEvent, APIGatewayProxyRe
   }
 
   if (account.username !== payload.username) {
-    return UNAUTHORIZED_ERROR;
+    return createUnauthorizedError('account not associated with user');
   }
 
   const transaction: TransactionSchema = {
@@ -158,17 +158,17 @@ export const listTransactions: Handler<APIGatewayProxyEvent, APIGatewayProxyResu
   const payload = getTokenPayload(event);
   
   if (!payload) {
-    return UNAUTHORIZED_ERROR;
+    return createUnauthorizedError('invalid token');
   }
 
   if (!EventWithBody.guard(event)) {
-    return BAD_REQUEST_ERROR;
+    return createBadRequestError('no body provided');
   }
 
   const request: unknown = JSON.parse(event.body);
 
   if (!TransactionListRequest.guard(request)) {
-    return BAD_REQUEST_ERROR;
+    return createBadRequestError('invalid form');
   }
 
   const client = new DocumentClient();
@@ -183,7 +183,7 @@ export const listTransactions: Handler<APIGatewayProxyEvent, APIGatewayProxyResu
   }).promise()).Item as AccountSchema | undefined;
 
   if (!fetchedAccount || fetchedAccount.username !== payload.username) {
-    return UNAUTHORIZED_ERROR;
+    return createUnauthorizedError('account not associated with user');
   }
 
   interface TransactionQueryOutput extends DocumentClient.QueryOutput {
