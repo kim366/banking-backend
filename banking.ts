@@ -216,7 +216,7 @@ export const listTransactions: Handler<APIGatewayProxyEvent, APIGatewayProxyResu
   }
 
   const transactionParams: DocumentClient.QueryInput = {
-    TableName: env.TRANSACTIONS_TABLE!,
+    TableName: request.stored ? env.PENDING_TRANSACTIONS_TABLE! : env.TRANSACTIONS_TABLE!,
     KeyConditionExpression: 'iban = :iban',
     Limit: request.n,
     ExpressionAttributeValues: {
