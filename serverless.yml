@@ -54,38 +54,38 @@ plugins:
   - serverless-offline
 
 functions:
-  login:
-    handler: auth.login
+  createUser:
+    handler: src/privateHandlers.createUserHandler
+
+  createManyUsers:
+    handler: src/privateHandlers.createManyUsersHandler
+
+  postLogin:
+    handler: src/httpHandlers.postLoginHandler
     events:
       - http:
           path: login
           method: post
           cors: true
   
-  createUser:
-    handler: auth.create
-
-  createManyUsers:
-    handler: auth.createMany
-  
   getAccounts:
-    handler: banking.accounts
+    handler: src/httpHandlers.getAccountsHandler
     events:
       - http:
           path: accounts
           method: get
           cors: true
   
-  performTransaction:
-    handler: banking.performTransaction
+  postTransaction:
+    handler: src/httpHandlers.postTransactionHandler
     events:
       - http:
           path: transaction
           method: post
           cors: true
 
-  saveTransaction:
-    handler: banking.saveTransaction
+  putTransaction:
+    handler: src/httpHandlers.putTransactionHandler
     events:
       - http:
           path: transaction
@@ -93,15 +93,15 @@ functions:
           cors: true
 
   deleteTransaction:
-    handler: banking.deleteTransaction
+    handler: src/httpHandlers.deleteTransactionHandler
     events:
       - http:
           path: transaction
           method: delete
           cors: true
 
-  listTransactions:
-    handler: banking.listTransactions
+  getTransactions:
+    handler: src/httpHandlers.getTransactionsHandler
     events:
       - http:
           path: transactions/{iban}

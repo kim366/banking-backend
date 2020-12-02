@@ -38,4 +38,3 @@ export const TransactionListRequest = Record({
 }));
 
 export type TransactionListRequest = Static<typeof TransactionListRequest>;
-
