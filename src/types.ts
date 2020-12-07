@@ -11,7 +11,7 @@ export interface TokenPayload  {
 
 export interface InvolvedParties<T> {
   it: T;
-  complementary: T;
+  complementary?: T;
 }
 
 export interface TransactionInfo extends TransactionRequest {

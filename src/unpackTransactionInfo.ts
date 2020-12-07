@@ -34,14 +34,14 @@ async function fetchAccountsInvolvedInTransaction(
     iban: request.iban,
   };
 
-  const otherIbanKey: AccountAttributes = {
+  const complementaryIbanKey: AccountAttributes = {
     iban: request.complementaryIban,
   };
 
   return (await client.batchGet({
     RequestItems: {
       [env.ACCOUNTS_TABLE!]: {
-        Keys: [ibanKey, otherIbanKey],
+        Keys: [ibanKey, complementaryIbanKey],
       }
     }
   }).promise()).Responses?.[ACCOUNTS_TABLE] as AccountSchema[] | undefined;
@@ -52,13 +52,13 @@ function unpackAccountsInvolvedInTransaction(
   request: TransactionRequest,
   payload: TokenPayload,
 ): InvolvedParties<AccountSchema> {
-  if (!fetchedAccounts || fetchedAccounts.length < 2) {
+  if (!fetchedAccounts) {
     throw new ErrorResponse(BAD_REQUEST, 'an account was not found');
   }
 
   let accounts: InvolvedParties<AccountSchema> = {
     it: fetchedAccounts.find(a => a.iban === request.iban)!,
-    complementary: fetchedAccounts.find(a => a.iban !== request.iban)!,
+    complementary: fetchedAccounts.find(a => a.iban !== request.iban),
   };
 
   if (accounts.it.username !== payload.username) {
