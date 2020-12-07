@@ -43,12 +43,14 @@ async function verifyPassword(request: LoginRequest, user: UserSchema): Promise<
   }
 }
 
-async function verifyCredentials(request: LoginRequest, user: UserSchema | undefined): Promise<void> {
+async function verifyCredentials(request: LoginRequest, user: UserSchema | undefined): Promise<UserSchema> {
   if (!user) {
     throw new ErrorResponse(UNAUTHORIZED, 'invalid credentials')
   }
 
-  verifyPassword(request, user);
+  await verifyPassword(request, user);
+
+  return user;
 }
 
 function createToken({ username }: LoginRequest): string {
@@ -62,14 +64,14 @@ function createToken({ username }: LoginRequest): string {
 export default async function unpackLoginInfo(client: DocumentClient, event: APIGatewayProxyEvent): Promise<LoginInfo> {
   const request = parseRequest(event);
   const key = createUserKey(request);
-  const user = await fetchUser(client, key);
+  const unverifiedUser = await fetchUser(client, key);
   const token = createToken(request);
-  await verifyCredentials(request, user);
+  const user = await verifyCredentials(request, unverifiedUser);
 
   return {
     ...request,
     key,
-    user: user as UserSchema,
+    user,
     token,
   };
 } 
