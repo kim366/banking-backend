@@ -52,6 +52,7 @@ provider:
 plugins:
   - serverless-plugin-typescript
   - serverless-offline
+  - serverless-dynamodb-local
 
 functions:
   createUser:
@@ -168,3 +169,6 @@ resources:
 
 custom:
   stage: ${opt:stage, self:provider.stage}
+  dynamodb:
+    stages:
+      - test

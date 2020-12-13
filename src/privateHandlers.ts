@@ -1,18 +1,16 @@
 import { Handler } from 'aws-lambda';
-import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import { LoginRequest } from './guards';
 import createUser from './createUser';
 import extendBaseAccounts from './extendBaseAccounts';
 import generateFakeUserInfo from './generateFakeUserData';
 import * as faker from 'faker';
-
-const client = new DocumentClient();
+import databaseClient from './databaseClient';
 
 async function create(user: LoginRequest) {
   const info = await generateFakeUserInfo(user);
   const accounts = extendBaseAccounts(info);
 
-  await createUser(client, info, accounts);
+  await createUser(databaseClient, info, accounts);
 
   return `User ${info.username} successfully created`;
 }

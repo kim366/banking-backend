@@ -11,15 +11,14 @@ import unpackTransactionListInfo from './unpackTransactionListInfo';
 import savePendingTransaction from './savePendingTransaction';
 import unpackLoginInfo from './unpackLoginInfo';
 import performLogin from './performLogin';
+import databaseClient from './databaseClient';
 
 type LambdaHandler = Handler<APIGatewayProxyEvent, APIGatewayProxyResult>
 
-const client = new DocumentClient();
-
 export const postTransactionHandler: LambdaHandler = event => {
   return handleRequest(async () => {
-    const info = await unpackTransactionInfo(client, event);
-    performTransaction(client, info);
+    const info = await unpackTransactionInfo(databaseClient, event);
+    performTransaction(databaseClient, info);
 
     return {
       statusCode: ACCEPTED,
@@ -32,26 +31,26 @@ export const getAccountsHandler: LambdaHandler = event => {
   return handleRequest(async () => {
     return {
       statusCode: OK,
-      body: await getStringifiedAccounts(client, event),
+      body: await getStringifiedAccounts(databaseClient, event),
     }
   });
 };
 
 export const getTransactionsHandler: LambdaHandler = event => {
   return handleRequest(async () => {
-    const info = await unpackTransactionListInfo(client, event);
+    const info = await unpackTransactionListInfo(databaseClient, event);
     
     return {
       statusCode: OK,
-      body: await getStringifiedTransactionsWithPagination(client, info),
+      body: await getStringifiedTransactionsWithPagination(databaseClient, info),
     }
   });
 };
 
 export const deleteTransactionHandler: LambdaHandler = event => {
   return handleRequest(async () => {
-    const info = await unpackTransactionInfo(client, event);
-    deletePendingTransaction(client, info);
+    const info = await unpackTransactionInfo(databaseClient, event);
+    deletePendingTransaction(databaseClient, info);
 
     return {
       statusCode: ACCEPTED,
@@ -62,10 +61,10 @@ export const deleteTransactionHandler: LambdaHandler = event => {
 
 export const putTransactionHandler: LambdaHandler = event => {
   return handleRequest(async () => {
-    const info = await unpackTransactionInfo(client, event);
+    const info = await unpackTransactionInfo(databaseClient, event);
 
     return {
-      statusCode: await savePendingTransaction(client, info),
+      statusCode: await savePendingTransaction(databaseClient, info),
       body: '',
     };
   });
@@ -73,11 +72,11 @@ export const putTransactionHandler: LambdaHandler = event => {
 
 export const postLoginHandler: LambdaHandler = event => {
   return handleRequest(async () => {
-    const info = await unpackLoginInfo(client, event);
+    const info = await unpackLoginInfo(databaseClient, event);
   
     return {
       statusCode: OK,
-      body: await performLogin(client, info),
+      body: await performLogin(databaseClient, info),
     };
   });
 }
