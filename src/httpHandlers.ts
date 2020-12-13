@@ -18,10 +18,10 @@ type LambdaHandler = Handler<APIGatewayProxyEvent, APIGatewayProxyResult>
 export const postTransactionHandler: LambdaHandler = event => {
   return handleRequest(async () => {
     const info = await unpackTransactionInfo(databaseClient, event);
-    performTransaction(databaseClient, info);
+    await performTransaction(databaseClient, info);
 
     return {
-      statusCode: ACCEPTED,
+      statusCode: OK,
       body: '',
     };
   });
@@ -50,16 +50,17 @@ export const getTransactionsHandler: LambdaHandler = event => {
 export const deleteTransactionHandler: LambdaHandler = event => {
   return handleRequest(async () => {
     const info = await unpackTransactionInfo(databaseClient, event);
-    deletePendingTransaction(databaseClient, info);
+    await deletePendingTransaction(databaseClient, info);
 
     return {
-      statusCode: ACCEPTED,
+      statusCode: OK,
       body: '',
     };
   });
 };
 
 export const putTransactionHandler: LambdaHandler = event => {
+  console.log(event.body);
   return handleRequest(async () => {
     const info = await unpackTransactionInfo(databaseClient, event);
 

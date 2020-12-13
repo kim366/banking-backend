@@ -1,6 +1,6 @@
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import { TransactionAttributes, TransactionSchema, UserAttributes } from './schemas';
 import { PENDING_TRANSACTIONS_TABLE, TRANSACTIONS_TABLE, USERS_TABLE } from './definitions';
+import { TransactionAttributes, TransactionSchema, UserAttributes } from './schemas';
 import { InvolvedParties, TransactionInfo, UpdateExpression } from './types';
 
 function createTransactionKey({ iban, timestamp }: TransactionInfo): TransactionAttributes {
@@ -129,14 +129,47 @@ function createTransactionItems(
 export default async function performTransaction(
   client: DocumentClient,
   info: TransactionInfo,
+  force = false,
 ): Promise<void> {
   const key = createTransactionKey(info);
-  const transactions = createTransactionEntries(info, key);
+  const transactions = createTransactionEntries(info, key);  
   const userKeys = createUserKeys(info);
   const balanceChanges = createBalanceChangeExpressions(info);
   const transactionItems = createTransactionItems(key, userKeys, transactions, balanceChanges);
+  console.log(balanceChanges)
 
-  await client.transactWrite({
-    TransactItems: transactionItems
-  }).promise();
+  let transactionCompleted = false;
+  let numRetries = 0;
+
+  let cancellationReasons: { Code: string, Message: string }[] | null = null;
+
+  do {
+    transactionCompleted = true;
+
+    const databaseTransactionRequest = client.transactWrite({
+      TransactItems: transactionItems
+    });
+
+    databaseTransactionRequest.on('extractError', response => {
+      cancellationReasons = JSON.parse(response.httpResponse.body.toString()).CancellationReasons;
+
+      if (cancellationReasons && cancellationReasons
+        .filter(r => r.Code !== 'None')
+        .some(r => r.Code !== 'TransactionConflict'))
+      {
+        throw response;
+      } else {
+        transactionCompleted = false;
+      }
+    });
+
+    await new Promise((resolve, reject) => databaseTransactionRequest.send((err, response) => {
+      if (err && !cancellationReasons) {
+        return reject(err);
+      }
+      return resolve(response);
+    }));
+
+    ++numRetries;
+  } while (!transactionCompleted && numRetries < 10);
 }
