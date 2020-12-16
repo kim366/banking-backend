@@ -1,5 +1,6 @@
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import { PENDING_TRANSACTIONS_TABLE, TRANSACTIONS_TABLE, USERS_TABLE } from './definitions';
+import { PENDING_TRANSACTIONS_TABLE, TOO_MANY_REQUESTS, TRANSACTIONS_TABLE, USERS_TABLE } from './definitions';
+import ErrorResponse from './ErrorResponse';
 import { TransactionAttributes, TransactionSchema, UserAttributes } from './schemas';
 import { InvolvedParties, TransactionInfo, UpdateExpression } from './types';
 
@@ -172,4 +173,8 @@ export default async function performTransaction(
 
     ++numRetries;
   } while (!transactionCompleted && numRetries < 10);
+
+  if (!transactionCompleted) {
+    throw new ErrorResponse(TOO_MANY_REQUESTS, 'too many requests');
+  }
 }
