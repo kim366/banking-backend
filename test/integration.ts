@@ -278,4 +278,12 @@ test('money should be transferred from account to own second account', async t =
   assert.ok(Math.abs(newComplementaryBalance - (complementaryBalance + 10)) < 0.01, `expected ${newComplementaryBalance} to be almost ${complementaryBalance + 10}`);
 });
 
+test('limit should be sent along with account data', async t => {
+  const limit = (await t.users[0].getAccount(0)).limit;
+  const secondaryLimit = (await t.users[0].getAccount(1)).limit;
+
+  assert.ok(limit >= -10_000 && limit <= 0, `limit is ${limit}`);
+  assert.ok(secondaryLimit >= -10_000 && secondaryLimit <= 0, `secondaryLimit is ${secondaryLimit}`);
+});
+
 test.run();

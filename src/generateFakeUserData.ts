@@ -14,12 +14,14 @@ function generateBaseAccounts(): AccountSubSchema[] {
       accountType: 'Girokonto',
       balance: faker.random.number({ min: -1_000, max: 5_000, precision: 0.01 }),
       iban: faker.finance.iban(false),
+      limit: faker.random.number({ min: -7_000, max: 0, precision: 1 }),
     },
     {
       name: 'Sparschwein',
       accountType: 'Sparkonto',
       balance: faker.random.number({ min: 200, max: 100_000, precision: 0.01 }),
       iban: faker.finance.iban(false),
+      limit: 0,
     }
   ];
 }
