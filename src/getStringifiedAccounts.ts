@@ -4,6 +4,7 @@ import { UserAttributes, UserSchema } from './schemas';
 import { USERS_TABLE } from './definitions';
 import parseToken from './parseToken';
 import { TokenPayload } from './types';
+import UnreachableCodeException from './UnreachableCodeException';
 
 function createUserKey(payload: TokenPayload): UserAttributes {
   return {
@@ -12,11 +13,17 @@ function createUserKey(payload: TokenPayload): UserAttributes {
 }
 
 async function fetchPartialUser(client: DocumentClient, key: UserAttributes): Promise<Pick<UserSchema, 'accounts'>> {
-  return (await client.get({
+  const user = (await client.get({
     TableName: USERS_TABLE,
     Key: key,
     ProjectionExpression:                'accounts'
-  }).promise()).Item as Pick<UserSchema, 'accounts'>;
+  }).promise()).Item as Pick<UserSchema, 'accounts'> | undefined;
+
+  if (!user) {
+    throw new UnreachableCodeException(`A corresponding user was not found for account ${key.username}`);
+  }
+
+  return user;
 }
 
 function stringifyAccounts(user: Pick<UserSchema, 'accounts'>): string {

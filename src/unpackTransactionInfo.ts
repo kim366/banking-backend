@@ -2,11 +2,12 @@ import { APIGatewayProxyEvent } from 'aws-lambda';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import { env } from 'process';
 import { EventWithBody, TransactionRequest } from './guards';
-import { AccountAttributes, AccountSchema } from './schemas';
-import { ACCOUNTS_TABLE, BAD_REQUEST, UNAUTHORIZED } from './definitions';
+import { AccountAttributes, AccountSchema, UserAttributes, UserSchema } from './schemas';
+import { ACCOUNTS_TABLE, BAD_REQUEST, FORBIDDEN, UNAUTHORIZED, USERS_TABLE } from './definitions';
 import ErrorResponse from './ErrorResponse';
 import parseToken from './parseToken';
 import { InvolvedParties, TokenPayload, TransactionInfo } from './types';
+import UnreachableCodeException from './UnreachableCodeException';
 
 function parseRequest(event: APIGatewayProxyEvent): TransactionRequest {
   if (!EventWithBody.guard(event)) {
@@ -68,16 +69,50 @@ function unpackAccountsInvolvedInTransaction(
   return accounts;
 }
 
+async function ensureUserHasNotExceededLimit(
+  client: DocumentClient,
+  { amount }: TransactionRequest,
+  account: AccountSchema,
+): Promise<void> {
+  const userKey: UserAttributes = {
+    username: account.username,
+  };
+
+  const user = (await client.get({
+    TableName: USERS_TABLE,
+    Key: userKey,
+    ProjectionExpression:                'accounts',
+  }).promise()).Item as Pick<UserSchema, 'accounts'> | undefined;
+
+  if (!user) {
+    throw new UnreachableCodeException(`A corresponding user was not found for account ${account.iban}`);
+  }
+
+  let { balance, limit } = user.accounts[account.index]
+  
+  if (limit === undefined) {
+    limit = -1000;
+  }
+  
+  if (!balance || balance - amount < limit) {
+    throw new ErrorResponse(FORBIDDEN, 'limit exceeded');
+  }
+}
+
 export default async function unpackTransactionInfo(
   client: DocumentClient,
   event: APIGatewayProxyEvent,
 ): Promise<TransactionInfo> {
   const payload = parseToken(event);
   const request = parseRequest(event);
-  const accounts = await fetchAccountsInvolvedInTransaction(client, request);
+  const fetchedAccounts = await fetchAccountsInvolvedInTransaction(client, request);
+  const accounts = unpackAccountsInvolvedInTransaction(fetchedAccounts, request, payload);
+
+  await ensureUserHasNotExceededLimit(client, request, accounts.it);
+
   return {
     // order relevant, otherwise security hole: runtypes does not shave off excess request items
     ...request,
-    accounts: unpackAccountsInvolvedInTransaction(accounts, request, payload),
+    accounts,
   };
 }

@@ -35,7 +35,7 @@ async function fetchUser(client: DocumentClient, key: UserAttributes): Promise<U
   }).promise()).Item as UserSchema | undefined;
 }
 
-async function verifyPassword(request: LoginRequest, user: UserSchema): Promise<void> {
+async function ensurePasswordIsValid(request: LoginRequest, user: UserSchema): Promise<void> {
   const providedKey = await deriveKey(request.password, user.salt, user.iterations);
 
   if (!user.derivedKey.equals(providedKey)) {
@@ -43,12 +43,12 @@ async function verifyPassword(request: LoginRequest, user: UserSchema): Promise<
   }
 }
 
-async function verifyCredentials(request: LoginRequest, user: UserSchema | undefined): Promise<UserSchema> {
+async function ensureCredentialsAreValid(request: LoginRequest, user: UserSchema | undefined): Promise<UserSchema> {
   if (!user) {
     throw new ErrorResponse(UNAUTHORIZED, 'invalid credentials')
   }
 
-  await verifyPassword(request, user);
+  await ensurePasswordIsValid(request, user);
 
   return user;
 }
@@ -66,7 +66,7 @@ export default async function unpackLoginInfo(client: DocumentClient, event: API
   const key = createUserKey(request);
   const unverifiedUser = await fetchUser(client, key);
   const token = createToken(request);
-  const user = await verifyCredentials(request, unverifiedUser);
+  const user = await ensureCredentialsAreValid(request, unverifiedUser);
 
   return {
     ...request,

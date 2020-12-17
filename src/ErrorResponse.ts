@@ -1,6 +1,6 @@
 import { APIGatewayProxyResult } from 'aws-lambda';
 
-export default  class ErrorResponse {
+export default class ErrorResponse {
   response: APIGatewayProxyResult;
 
   constructor(code: number, message: string) {

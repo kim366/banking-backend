@@ -6,6 +6,7 @@ type Username = string;
 export interface AccountSubSchema {
   iban: Iban;
   balance: number;
+  limit?: number;
   name: string;
   accountType: string;
 }

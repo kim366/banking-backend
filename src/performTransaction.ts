@@ -127,28 +127,19 @@ function createTransactionItems(
   ];
 }
 
-export default async function performTransaction(
+async function writeTransaction(
   client: DocumentClient,
-  info: TransactionInfo,
-  force = false,
-): Promise<void> {
-  const key = createTransactionKey(info);
-  const transactions = createTransactionEntries(info, key);  
-  const userKeys = createUserKeys(info);
-  const balanceChanges = createBalanceChangeExpressions(info);
-  const transactionItems = createTransactionItems(key, userKeys, transactions, balanceChanges);
-  console.log(balanceChanges)
-
+  items: DocumentClient.TransactWriteItem[],
+): Promise<boolean> {
   let transactionCompleted = false;
   let numRetries = 0;
-
   let cancellationReasons: { Code: string, Message: string }[] | null = null;
 
   do {
     transactionCompleted = true;
 
     const databaseTransactionRequest = client.transactWrite({
-      TransactItems: transactionItems
+      TransactItems: items
     });
 
     databaseTransactionRequest.on('extractError', response => {
@@ -174,7 +165,26 @@ export default async function performTransaction(
     ++numRetries;
   } while (!transactionCompleted && numRetries < 10);
 
-  if (!transactionCompleted) {
+  return transactionCompleted;
+}
+
+function ensureTransactionWasSuccessful(isSuccessful: boolean) {
+  if (!isSuccessful) {
     throw new ErrorResponse(TOO_MANY_REQUESTS, 'too many requests');
   }
+}
+
+export default async function performTransaction(
+  client: DocumentClient,
+  info: TransactionInfo,
+  force = false,
+): Promise<void> {
+  const key = createTransactionKey(info);
+  const transactions = createTransactionEntries(info, key);  
+  const userKeys = createUserKeys(info);
+  const balanceChanges = createBalanceChangeExpressions(info);
+  const transactionItems = createTransactionItems(key, userKeys, transactions, balanceChanges);
+
+  const isSuccessful = await writeTransaction(client, transactionItems);
+  ensureTransactionWasSuccessful(isSuccessful);
 }

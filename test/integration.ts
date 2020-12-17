@@ -229,4 +229,29 @@ test('a transaction saved for later and deleted should not show up as an entry',
   assert.is(newLength, length);
 });
 
+test('user should be forbidden from transferring an amount exceeding account limit', async t => {
+  const { balance, iban } = await t.users[0].getAccount(0);
+
+  const req: TransactionRequest = {
+    amount: 8_000, // default limit is -1_000; maximum given default balance is 5_000
+    iban,
+    complementaryIban: 'someiban123',
+    complementaryName: 'Hans Z.',
+    text: 'Money for you',
+    textType: 'Verwendungszweck',
+    timestamp: new Date().toISOString(),
+    type: '',
+  }
+
+  return http.post('transaction', req, t.users[0].tokenConfig)
+    .then(() => {
+      throw new Error('user has not been rejected from exceeding their limit');
+    })
+    .catch(e => {
+      if (e.response) {
+        assert.is(e.response.status, 403);
+      }
+    });
+});
+
 test.run();
