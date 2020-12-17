@@ -108,7 +108,7 @@ test('money should be deducted from account on transfer', async t => {
     textType: 'Verwendungszweck',
     timestamp: new Date().toISOString(),
     type: '',
-  }
+  };
 
   await http.post('transaction', req, t.users[0].tokenConfig);
 
@@ -130,7 +130,7 @@ test('money should be credited to other account on transfer', async t => {
     textType: 'Verwendungszweck',
     timestamp: new Date().toISOString(),
     type: '',
-  }
+  };
 
   await http.post('transaction', req, t.users[0].tokenConfig);
 
@@ -157,7 +157,7 @@ test('a transaction entry should be created on trasfer', async t => {
     textType: 'Verwendungszweck',
     timestamp: new Date().toISOString(),
     type: '',
-  }
+  };
 
   await http.post('transaction', req, t.users[0].tokenConfig);
 
@@ -185,7 +185,7 @@ test('a transaction saved for later should show up as an entry', async t => {
     textType: 'Verwendungszweck',
     timestamp: new Date().toISOString(),
     type: '',
-  }
+  };
 
   await http.put('transaction', req, t.users[0].tokenConfig);
 
@@ -214,7 +214,7 @@ test('a transaction saved for later and deleted should not show up as an entry',
     textType: 'Verwendungszweck',
     timestamp: new Date().toISOString(),
     type: '',
-  }
+  };
 
   await http.put('transaction', req, t.users[0].tokenConfig);
   await http.request({
@@ -241,7 +241,7 @@ test('user should be forbidden from transferring an amount exceeding account lim
     textType: 'Verwendungszweck',
     timestamp: new Date().toISOString(),
     type: '',
-  }
+  };
 
   return http.post('transaction', req, t.users[0].tokenConfig)
     .then(() => {
@@ -252,6 +252,30 @@ test('user should be forbidden from transferring an amount exceeding account lim
         assert.is(e.response.status, 403);
       }
     });
+});
+
+test('money should be transferred from account to own second account', async t => {
+  const { balance, iban } = await t.users[0].getAccount(0);
+  const { iban: complementaryIban, balance: complementaryBalance } = await t.users[0].getAccount(1);
+
+  const req: TransactionRequest = {
+    amount: 10,
+    iban,
+    complementaryIban,
+    complementaryName: 'Myself',
+    text: 'Money for you',
+    textType: 'Verwendungszweck',
+    timestamp: new Date().toISOString(),
+    type: '',
+  };
+
+  await http.post('transaction', req, t.users[0].tokenConfig);
+
+  const newBalance = (await t.users[0].getAccount(0)).balance;
+  const newComplementaryBalance = (await t.users[0].getAccount(1)).balance;
+
+  assert.ok(Math.abs(newBalance - (balance - 10)) < 0.01, `expected ${newBalance} to be almost ${balance - 10}`);
+  assert.ok(Math.abs(newComplementaryBalance - (complementaryBalance + 10)) < 0.01, `expected ${newComplementaryBalance} to be almost ${complementaryBalance + 10}`);
 });
 
 test.run();

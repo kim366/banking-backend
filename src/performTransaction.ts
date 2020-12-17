@@ -53,21 +53,40 @@ function createUserKeys({ accounts }: TransactionInfo): InvolvedParties<UserAttr
 }
 
 function createBalanceChangeExpressions({ amount, accounts }: TransactionInfo): InvolvedParties<UpdateExpression> {
-  return {
-    it: {
-      UpdateExpression: `add accounts[${accounts.it.index}].balance :amount`,
-      ExpressionAttributeValues: {
-        ':amount': -amount,
-      },
+  const baseBalanceChange: UpdateExpression = {
+    UpdateExpression: `add accounts[${accounts.it.index}].balance :amount`,
+    ExpressionAttributeValues: {
+      ':amount': -amount,
     },
+  };
+
+  const complementaryUpdateExpression = `accounts[${accounts.complementary?.index}].balance :complementaryAmount`;
+
+  const complementaryBalanceChange: UpdateExpression = {
+    UpdateExpression: 'add ' + complementaryUpdateExpression,
+    ExpressionAttributeValues: {
+      ':complementaryAmount': amount,
+    },
+  };
+
+  if (accounts.it.username === accounts.complementary?.username) {
+    return {
+      it: {
+        UpdateExpression: baseBalanceChange.UpdateExpression
+          + ', ' + complementaryUpdateExpression,
+        ExpressionAttributeValues: {
+          ...baseBalanceChange.ExpressionAttributeValues,
+          ...complementaryBalanceChange.ExpressionAttributeValues,
+        },
+      }
+    }
+  }
+  
+  return {
+    it: baseBalanceChange,
     complementary: accounts.complementary === undefined
       ? undefined
-      : {
-        UpdateExpression: `add accounts[${accounts.complementary.index}].balance :amount`,
-        ExpressionAttributeValues: {
-          ':amount': amount,
-        }
-      }
+      : complementaryBalanceChange
   };
 }
 
@@ -95,22 +114,26 @@ function createTransactionItems(
   ];
 
   const complementaryUpdateOperations: DocumentClient.TransactWriteItem[] =
-    transactions.complementary === undefined || userKeys.complementary === undefined || balanceChanges.complementary === undefined
+    transactions.complementary === undefined || userKeys.complementary === undefined
       ? []
       : [
-        {
-          Put: {
-            TableName: TRANSACTIONS_TABLE,
-            Item: transactions.complementary,
-          }
-        },
-        {
-          Update: {
-            TableName: USERS_TABLE,
-            Key: userKeys.complementary,
-            ...balanceChanges.complementary
-          }
-        },
+          {
+            Put: {
+              TableName: TRANSACTIONS_TABLE,
+              Item: transactions.complementary,
+            }
+          },
+          ...balanceChanges.complementary === undefined
+          ? []
+          : [
+            {
+              Update: {
+                TableName: USERS_TABLE,
+                Key: userKeys.complementary,
+                ...balanceChanges.complementary,
+              }
+            }
+          ],
       ];
 
   const deleteFromPendingOperation: DocumentClient.TransactWriteItem = {

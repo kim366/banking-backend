@@ -60,7 +60,6 @@ export const deleteTransactionHandler: LambdaHandler = event => {
 };
 
 export const putTransactionHandler: LambdaHandler = event => {
-  console.log(event.body);
   return handleRequest(async () => {
     const info = await unpackTransactionInfo(databaseClient, event);
 
