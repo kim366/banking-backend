@@ -28,7 +28,9 @@ async function fetchPartialUser(client: DocumentClient, key: UserAttributes): Pr
 
 function stringifyAccounts(user: Pick<UserSchema, 'accounts'>): string {
   return JSON.stringify({
-    accounts: user.accounts,
+    accounts: user.accounts.map(account => account.limit === undefined
+      ? { ...account, limit: -1000 }
+      : account),
   });
 }
 
