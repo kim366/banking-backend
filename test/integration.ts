@@ -2,11 +2,11 @@ import { Context } from 'aws-lambda';
 import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 import * as nassert from 'assert';
-import { createUserHandler } from '../src/privateHandlers';
+import { createUserHandler } from '../src/PrivateHandlers';
 import axios from 'axios';
-import { TransactionListRequest, TransactionRequest } from '../src/guards';
+import { TransactionListRequest, TransactionRequest } from '../src/Configuration/Guards';
 import * as yenv from 'yenv';
-import * as defs from '../src/definitions';
+import * as defs from '../src/Configuration/Definitions';
 
 const env = yenv('./env.yml');
 

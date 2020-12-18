@@ -1,31 +1,26 @@
-import { TransactionRequest } from './guards';
-
-type Iban = string;
-type Username = string;
+import { TransactionRequest } from './Guards';
+import { AccountAttributes, UserAttributes } from './Attributes';
 
 export interface AccountSubSchema {
-  iban: Iban;
+  iban: string;
   balance: number;
   limit?: number;
   name: string;
   accountType: string;
 }
 
-export interface UserSchema {
-  username: Username;
+export interface UserSchema extends UserAttributes {
   derivedKey: Buffer;
   salt: Buffer;
   iterations: number;
   accounts: AccountSubSchema[];
   firstName: string;
   lastName: string;
-  lastLogin: Date | null;
+  lastLogin: string | null;
 };
 
-export type UserAttributes = Pick<UserSchema, 'username'>;
-
-export interface AccountAttributes {
-  iban: Iban;
+export interface UserSchemaWithSpecifiedLastLogin extends UserSchema {
+  lastLogin: string;
 }
 
 export interface AccountSchema extends AccountAttributes, Pick<UserSchema, 'username' | 'firstName' | 'lastName'> {
@@ -33,5 +28,3 @@ export interface AccountSchema extends AccountAttributes, Pick<UserSchema, 'user
 }
 
 export interface TransactionSchema extends TransactionRequest {}
-
-export type TransactionAttributes = Pick<TransactionSchema, 'iban' | 'timestamp'>;

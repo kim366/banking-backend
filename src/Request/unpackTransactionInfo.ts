@@ -1,13 +1,12 @@
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import { env } from 'process';
-import { EventWithBody, TransactionRequest } from './guards';
-import { AccountAttributes, AccountSchema, UserAttributes, UserSchema } from './schemas';
-import { ACCOUNTS_TABLE, BAD_REQUEST, FORBIDDEN, UNAUTHORIZED, USERS_TABLE } from './definitions';
-import ErrorResponse from './ErrorResponse';
-import parseToken from './parseToken';
-import { InvolvedParties, TokenPayload, TransactionInfo } from './types';
-import UnreachableCodeException from './UnreachableCodeException';
+import { BAD_REQUEST, FORBIDDEN, UNAUTHORIZED } from '../Configuration/Definitions';
+import { AccountSchema } from '../Configuration/Schemas';
+import ErrorResponse from '../Exceptions/ErrorResponse';
+import InvolvedParties from '../Lib/InvolvedParties';
+import { TokenPayload, TransactionInfo } from '../Configuration/Types';
+import parseToken from '../Lib/parseToken';
+import { getMultipleAccountsByIban, listAccountsByUsername } from './DbReadOperations';
+import { EventWithBody, TransactionRequest } from '../Configuration/Guards';
 
 function parseRequest(event: APIGatewayProxyEvent): TransactionRequest {
   if (!EventWithBody.guard(event)) {
@@ -27,25 +26,12 @@ function parseRequest(event: APIGatewayProxyEvent): TransactionRequest {
   return request;
 }
 
-async function fetchAccountsInvolvedInTransaction(
-  client: DocumentClient,
+function fetchAccountsInvolvedInTransaction(
   request: TransactionRequest,
 ): Promise<AccountSchema[] | undefined> {
-  const ibanKey: AccountAttributes = {
-    iban: request.iban,
-  };
-
-  const complementaryIbanKey: AccountAttributes = {
-    iban: request.complementaryIban,
-  };
-
-  return (await client.batchGet({
-    RequestItems: {
-      [env.ACCOUNTS_TABLE!]: {
-        Keys: [ibanKey, complementaryIbanKey],
-      }
-    }
-  }).promise()).Responses?.[ACCOUNTS_TABLE] as AccountSchema[] | undefined;
+  return getMultipleAccountsByIban([
+    request.iban, request.complementaryIban
+  ]);
 }
 
 function unpackAccountsInvolvedInTransaction(
@@ -70,25 +56,12 @@ function unpackAccountsInvolvedInTransaction(
 }
 
 async function ensureUserHasNotExceededLimit(
-  client: DocumentClient,
   { amount }: TransactionRequest,
   account: AccountSchema,
 ): Promise<void> {
-  const userKey: UserAttributes = {
-    username: account.username,
-  };
+  const userAccounts = await listAccountsByUsername(account.username);
 
-  const user = (await client.get({
-    TableName: USERS_TABLE,
-    Key: userKey,
-    ProjectionExpression:                'accounts',
-  }).promise()).Item as Pick<UserSchema, 'accounts'> | undefined;
-
-  if (!user) {
-    throw new UnreachableCodeException(`A corresponding user was not found for account ${account.iban}`);
-  }
-
-  let { balance, limit } = user.accounts[account.index]
+  let { balance, limit } = userAccounts[account.index]
   
   if (limit === undefined) {
     limit = -1000;
@@ -100,15 +73,14 @@ async function ensureUserHasNotExceededLimit(
 }
 
 export default async function unpackTransactionInfo(
-  client: DocumentClient,
   event: APIGatewayProxyEvent,
 ): Promise<TransactionInfo> {
   const payload = parseToken(event);
   const request = parseRequest(event);
-  const fetchedAccounts = await fetchAccountsInvolvedInTransaction(client, request);
+  const fetchedAccounts = await fetchAccountsInvolvedInTransaction(request);
   const accounts = unpackAccountsInvolvedInTransaction(fetchedAccounts, request, payload);
 
-  await ensureUserHasNotExceededLimit(client, request, accounts.it);
+  await ensureUserHasNotExceededLimit(request, accounts.it);
 
   return {
     // order relevant, otherwise security hole: runtypes does not shave off excess request items

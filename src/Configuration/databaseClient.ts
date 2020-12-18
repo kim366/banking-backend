@@ -1,5 +1,5 @@
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import { STAGE } from './definitions';
+import { STAGE } from './Definitions';
 
 let dbConfig = undefined;
 

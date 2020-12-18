@@ -1,7 +1,9 @@
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import { TransactionSchema } from './schemas';
-import { CREATED, NO_CONTENT, PENDING_TRANSACTIONS_TABLE } from './definitions';
-import { TransactionInfo } from './types';
+import { TransactionSchema } from '../Configuration/Schemas';
+import { CREATED, NO_CONTENT, PENDING_TRANSACTIONS_TABLE } from '../Configuration/Definitions';
+import { TransactionInfo } from '../Configuration/Types';
+import databaseClient from '../Configuration/databaseClient';
+import { putPendingTransaction } from './DbWriteOperations';
 
 function createTransactionData(info: TransactionInfo): TransactionSchema {
   return {
@@ -20,12 +22,9 @@ function getStatusCodeFromPut(put: DocumentClient.PutItemOutput): number {
   return put.Attributes ? NO_CONTENT : CREATED;
 }
 
-export default async function savePendingTransaction(client: DocumentClient, info: TransactionInfo): Promise<number> {
-  const put = await client.put({
-    Item: createTransactionData(info),
-    TableName: PENDING_TRANSACTIONS_TABLE,
-    ReturnValues: 'ALL_OLD',
-  }).promise();
+export default async function savePendingTransaction(info: TransactionInfo): Promise<number> {
+  const data = createTransactionData(info);
+  const put = await putPendingTransaction(data);
 
   return getStatusCodeFromPut(put);
 }

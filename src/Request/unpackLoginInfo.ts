@@ -1,12 +1,14 @@
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import * as jwt from 'jsonwebtoken';
-import { BAD_REQUEST, SECRET, UNAUTHORIZED, USERS_TABLE } from './definitions';
-import deriveKey from './deriveKey';
-import ErrorResponse from './ErrorResponse';
-import { EventWithBody, LoginRequest } from './guards';
-import { UserAttributes, UserSchema } from './schemas';
-import { LoginInfo, TokenPayload } from './types';
+import { BAD_REQUEST, SECRET, UNAUTHORIZED, USERS_TABLE } from '../Configuration/Definitions';
+import deriveKey from '../Lib/deriveKey';
+import ErrorResponse from '../Exceptions/ErrorResponse';
+import { EventWithBody, LoginRequest } from '../Configuration/Guards';
+import { UserSchema, UserSchemaWithSpecifiedLastLogin } from '../Configuration/Schemas';
+import { LoginInfo, TokenPayload } from '../Configuration/Types';
+import { fetchUserByUsername } from './DbReadOperations';
+import isoNow from '../Lib/isoNow';
 
 function parseRequest(event: APIGatewayProxyEvent): LoginRequest {
   if (!EventWithBody.guard(event)) {
@@ -22,18 +24,7 @@ function parseRequest(event: APIGatewayProxyEvent): LoginRequest {
   return request;
 }
 
-function createUserKey({ username }: LoginRequest): UserAttributes {
-  return {
-    username,
-  };
-}
 
-async function fetchUser(client: DocumentClient, key: UserAttributes): Promise<UserSchema | undefined> {
-  return (await client.get({
-    TableName: USERS_TABLE,
-    Key: key,
-  }).promise()).Item as UserSchema | undefined;
-}
 
 async function ensurePasswordIsValid(request: LoginRequest, user: UserSchema): Promise<void> {
   const providedKey = await deriveKey(request.password, user.salt, user.iterations);
@@ -61,17 +52,31 @@ function createToken({ username }: LoginRequest): string {
   return jwt.sign(payload, SECRET);
 }
 
-export default async function unpackLoginInfo(client: DocumentClient, event: APIGatewayProxyEvent): Promise<LoginInfo> {
+function renewLastLoginDate(
+  user: UserSchema,
+): { user: UserSchemaWithSpecifiedLastLogin, newLoginDate: string } {
+  const newLoginDate = isoNow();
+
+  return {
+    user: {
+      ...user,
+      lastLogin: user.lastLogin ?? newLoginDate,
+    },
+    newLoginDate,
+  }
+}
+
+export default async function unpackLoginInfo(event: APIGatewayProxyEvent): Promise<LoginInfo> {
   const request = parseRequest(event);
-  const key = createUserKey(request);
-  const unverifiedUser = await fetchUser(client, key);
+  const unverifiedUser = await fetchUserByUsername(request.username);
   const token = createToken(request);
-  const user = await ensureCredentialsAreValid(request, unverifiedUser);
+  const userWithMaybeUnsetLastLogin = await ensureCredentialsAreValid(request, unverifiedUser);
+  const { user, newLoginDate } = renewLastLoginDate(userWithMaybeUnsetLastLogin);
 
   return {
     ...request,
-    key,
     user,
     token,
+    newLoginDate,
   };
 } 

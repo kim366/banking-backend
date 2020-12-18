@@ -1,8 +1,9 @@
 import * as crypto from 'crypto';
 import * as faker from 'faker';
-import deriveKey from './deriveKey';
-import { LoginRequest } from './guards';
-import { AccountSubSchema, UserSchema } from './schemas';
+import deriveKey from '../Lib/deriveKey';
+import { LoginRequest } from '../Configuration/Guards';
+import { AccountSchema, AccountSubSchema, UserSchema } from '../Configuration/Schemas';
+import UserData from '../Lib/UserData';
 
 type PersonalData = Pick<UserSchema, 'firstName' | 'lastName'>;
 type CryptographicData = Pick<UserSchema, 'derivedKey' | 'salt' | 'iterations'>;
@@ -12,7 +13,7 @@ function generateBaseAccounts(): AccountSubSchema[] {
     {
       name: 'Hauptkonto',
       accountType: 'Girokonto',
-      balance: faker.random.number({ min: -1_000, max: 5_000, precision: 0.01 }),
+      balance: faker.random.number({ min: -4_000, max: 100_000, precision: 0.01 }),
       iban: faker.finance.iban(false),
       limit: faker.random.number({ min: -7_000, max: 0, precision: 1 }),
     },
@@ -45,7 +46,7 @@ function generatePersonalData(): PersonalData {
   }
 }
 
-export default async function generateFakeUserInfo(request: LoginRequest): Promise<UserSchema> {
+async function generateUser(request: LoginRequest): Promise<UserSchema> {
   return {
     username: request.username,
     ...generatePersonalData(),
@@ -53,4 +54,26 @@ export default async function generateFakeUserInfo(request: LoginRequest): Promi
     accounts: generateBaseAccounts(),
     lastLogin: null,
   };
+}
+
+function deriveAccounts(
+  { firstName, lastName, username, accounts: baseAccounts }: UserSchema,
+): AccountSchema[] {
+  return baseAccounts.map((a, i) => ({
+    username,
+    firstName,
+    lastName,
+    iban: a.iban,
+    index: i,
+  }));
+}
+
+export default async function generateUserData(request: LoginRequest): Promise<UserData> {
+  const user = await generateUser(request);
+  const accounts = deriveAccounts(user);
+
+  return {
+    user,
+    accounts,
+  }
 }

@@ -1,8 +1,8 @@
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { SECRET, UNAUTHORIZED } from './definitions';
-import ErrorResponse from './ErrorResponse';
+import { SECRET, UNAUTHORIZED } from '../Configuration/Definitions';
+import ErrorResponse from '../Exceptions/ErrorResponse';
 import * as jwt from 'jsonwebtoken';
-import { TokenPayload } from './types';
+import { TokenPayload } from '../Configuration/Types';
 
 function getTokenPayload(event: APIGatewayProxyEvent): TokenPayload | null {
   const bearerHeader = event.headers.Authorization;

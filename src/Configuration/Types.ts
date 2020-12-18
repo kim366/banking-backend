@@ -1,6 +1,8 @@
-import { LoginRequest, TransactionListRequest, TransactionRequest } from './guards';
-import { AccountSchema, UserAttributes, UserSchema } from './schemas';
+import { LoginRequest, TransactionListRequest, TransactionRequest } from './Guards';
+import { AccountSchema, TransactionSchema, UserSchemaWithSpecifiedLastLogin } from './Schemas';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
+import InvolvedParties from '../Lib/InvolvedParties';
+import { TransactionAttributes } from './Attributes';
 
 export type UpdateExpression = Pick<DocumentClient.Update, 'UpdateExpression' | 'ExpressionAttributeValues'>;
 export type ConditionExpression = Pick<DocumentClient.QueryInput, 'KeyConditionExpression' | 'ExpressionAttributeValues'>;
@@ -9,10 +11,10 @@ export interface TokenPayload  {
   username: string
 }
 
-export interface InvolvedParties<T> {
-  it: T;
-  complementary?: T;
-}
+export interface TransactionQueryOutput extends DocumentClient.QueryOutput {
+  Items?: TransactionSchema[];
+  LastEvaluatedKey?: TransactionAttributes;
+};
 
 export interface TransactionInfo extends TransactionRequest {
   accounts: InvolvedParties<AccountSchema>;
@@ -26,7 +28,7 @@ export interface TransactionListInfo extends TransactionListRequest {
 }
 
 export interface LoginInfo extends LoginRequest {
-  key: UserAttributes;
-  user: UserSchema;
+  user: UserSchemaWithSpecifiedLastLogin;
   token: string;
+  newLoginDate: string;
 }

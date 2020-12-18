@@ -1,5 +1,5 @@
 import { APIGatewayProxyResult } from 'aws-lambda';
-import ErrorResponse from './ErrorResponse';
+import ErrorResponse from '../Exceptions/ErrorResponse';
 
 export function withCors(response: APIGatewayProxyResult): APIGatewayProxyResult {
   const headers = response.headers ?? {};
