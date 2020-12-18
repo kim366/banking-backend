@@ -1,10 +1,7 @@
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
 import { USERS_TABLE } from './definitions';
+import isoNow from './isoNow';
 import { LoginInfo } from './types';
-
-function isoNow() {
-  return new Date().toISOString();
-}
 
 async function updateLastLoginDate(
   client: DocumentClient,

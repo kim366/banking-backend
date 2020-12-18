@@ -1,8 +1,12 @@
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import { PENDING_TRANSACTIONS_TABLE, TOO_MANY_REQUESTS, TRANSACTIONS_TABLE, USERS_TABLE } from './definitions';
 import ErrorResponse from './ErrorResponse';
 import { TransactionAttributes, TransactionSchema, UserAttributes } from './schemas';
+import { EventBridge, Lambda } from 'aws-sdk';
+import { FULFIL_TRANSACTION_ARN, PENDING_TRANSACTIONS_TABLE, TOO_MANY_REQUESTS, TRANSACTIONS_TABLE, USERS_TABLE, STAGE, ACCEPTED, OK, FULFIL_TRANSACTION_NAME } from './definitions';
 import { InvolvedParties, TransactionInfo, UpdateExpression } from './types';
+import isoNow from './isoNow';
+
+const eventBridge = new EventBridge();
 
 function createTransactionKey({ iban, timestamp }: TransactionInfo): TransactionAttributes {
   return {
@@ -197,17 +201,100 @@ function ensureTransactionWasSuccessful(isSuccessful: boolean) {
   }
 }
 
+function createScheduleExpression(date: Date) {
+  const mins = date.getUTCMinutes();
+  const hrs = date.getUTCHours();
+  const day = date.getUTCDate();
+  const month = date.getUTCMonth() + 1;
+  const weekDay = '?';
+  const year = date.getUTCFullYear();
+
+  return `cron(${mins} ${hrs} ${day} ${month} ${weekDay} ${year})`;
+}
+
+function createId(info: TransactionInfo, prefix: string) {
+  return `${prefix}_${info.iban}_${info.timestamp}`.replace(/[^_A-Za-z0-9]/g, '_');
+}
+
+async function scheduleFutureTransaction(info: TransactionInfo) {
+  const lambda = new Lambda();
+
+  const date = new Date(info.timestamp);
+  const eventName = createId(info, 'Transact');
+  const permissionName = createId(info, 'Perm');
+  const targetName = createId(info, 'Target');
+
+  const ruleArn = (await eventBridge.putRule({
+    Name: eventName,
+    Description: `Transaction of ${info.amount} from ${info.iban} to ${info.complementaryIban} on ${date.toLocaleString('de')}`,
+    ScheduleExpression: createScheduleExpression(date),
+  }).promise()).RuleArn;
+
+  await lambda.addPermission({
+    Action: 'lambda:InvokeFunction',
+    FunctionName: FULFIL_TRANSACTION_NAME,
+    Principal: 'events.amazonaws.com',
+    SourceArn: ruleArn,
+    StatementId: permissionName,
+  }).promise();
+
+  await eventBridge.putTargets({
+    Rule: eventName,
+    Targets: [
+      {
+        Arn: FULFIL_TRANSACTION_ARN,
+        Id: targetName,
+        Input: JSON.stringify({
+          ...info,
+          event: eventName,
+          target: targetName,
+        }),
+      }
+    ]
+  }).promise();
+}
+
+async function deleteEvent({ event, target }: TransactionInfo): Promise<void> {
+  if (event && target) {
+    await eventBridge.removeTargets({
+      Rule: event,
+      Ids: [
+        target,
+      ],
+    }).promise();
+
+    await eventBridge.deleteRule({
+      Name: event,
+    }).promise(); 
+  }
+}
+
 export default async function performTransaction(
   client: DocumentClient,
   info: TransactionInfo,
   force = false,
-): Promise<void> {
-  const key = createTransactionKey(info);
-  const transactions = createTransactionEntries(info, key);  
-  const userKeys = createUserKeys(info);
-  const balanceChanges = createBalanceChangeExpressions(info);
-  const transactionItems = createTransactionItems(key, userKeys, transactions, balanceChanges);
+): Promise<number> {
+  const now = isoNow();
+  const amortizedNow = isoNow(180);
 
-  const isSuccessful = await writeTransaction(client, transactionItems);
-  ensureTransactionWasSuccessful(isSuccessful);
+  if (info.timestamp < amortizedNow) {
+    info.timestamp = now;
+
+    await deleteEvent(info);
+
+    const key = createTransactionKey(info);
+    const transactions = createTransactionEntries(info, key);
+    const userKeys = createUserKeys(info);
+    const balanceChanges = createBalanceChangeExpressions(info);
+    const transactionItems = createTransactionItems(key, userKeys, transactions, balanceChanges);
+  
+    const isSuccessful = await writeTransaction(client, transactionItems);
+    ensureTransactionWasSuccessful(isSuccessful);
+
+    return OK;
+  } else {
+    await scheduleFutureTransaction(info);
+
+    return ACCEPTED;
+  }
 }

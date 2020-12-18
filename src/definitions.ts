@@ -19,3 +19,6 @@ export const setUsersTable = (x: string) => USERS_TABLE = x;
 export const setAccountsTable = (x: string) => ACCOUNTS_TABLE = x;
 export const setTransactionsTable = (x: string) => TRANSACTIONS_TABLE = x;
 export const setPendingTransactionsTable = (x: string) => PENDING_TRANSACTIONS_TABLE = x;
+
+export const FULFIL_TRANSACTION_NAME = `banking-${STAGE}-fulfilTransaction`;
+export const FULFIL_TRANSACTION_ARN = `arn:aws:lambda:us-east-1:136325436774:function:${FULFIL_TRANSACTION_NAME}`;

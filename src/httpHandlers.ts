@@ -18,10 +18,10 @@ type LambdaHandler = Handler<APIGatewayProxyEvent, APIGatewayProxyResult>
 export const postTransactionHandler: LambdaHandler = event => {
   return handleRequest(async () => {
     const info = await unpackTransactionInfo(databaseClient, event);
-    await performTransaction(databaseClient, info);
+    const statusCode = await performTransaction(databaseClient, info);
 
     return {
-      statusCode: OK,
+      statusCode,
       body: '',
     };
   });

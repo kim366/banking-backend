@@ -16,6 +16,9 @@ export interface InvolvedParties<T> {
 
 export interface TransactionInfo extends TransactionRequest {
   accounts: InvolvedParties<AccountSchema>;
+  // EventBridge IDs
+  event?: string;
+  target?: string;
 }
 
 export interface TransactionListInfo extends TransactionListRequest {

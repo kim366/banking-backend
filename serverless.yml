@@ -48,6 +48,11 @@ provider:
         - dynamodb:Query
         - dynamodb:UpdateItem
       Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${file(env.yml):${self:custom.stage}.PENDING_TRANSACTIONS_TABLE}"
+    - Effect: Allow
+      Action:
+        - "events:*"
+        - "lambda:AddPermission"
+      Resource: "*"
 
 plugins:
   - serverless-plugin-typescript
@@ -60,6 +65,9 @@ functions:
 
   createManyUsers:
     handler: src/privateHandlers.createManyUsersHandler
+
+  fulfilTransaction:
+    handler: src/privateHandlers.fulfilTransactionHandler
 
   postLogin:
     handler: src/httpHandlers.postLoginHandler

@@ -5,6 +5,8 @@ import extendBaseAccounts from './extendBaseAccounts';
 import generateFakeUserInfo from './generateFakeUserData';
 import * as faker from 'faker';
 import databaseClient from './databaseClient';
+import performTransaction from './performTransaction';
+import { TransactionInfo } from './types';
 
 async function create(user: LoginRequest) {
   const info = await generateFakeUserInfo(user);
@@ -29,3 +31,7 @@ export const createManyUsersHandler: Handler<number, string[]> = n => {
     return create(user);
   }));
 }
+
+export const fulfilTransactionHandler: Handler<TransactionInfo, void> = async info => {
+  await performTransaction(databaseClient, info);
+};
