@@ -1,22 +1,21 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Handler } from 'aws-lambda';
-import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import { ACCEPTED, NO_CONTENT, OK } from './Configuration/Definitions';
-import deletePendingTransaction from './Mutations/deletePendingTransaction';
-import getStringifiedAccounts from './Request/unpackAccountListInfo';
+import { NO_CONTENT } from './Configuration/Definitions';
+import deriveFullUser from './Generation/deriveFullUser';
 import handleRequest from './Lib/handleResponse';
+import createUser from './Mutations/createUser';
+import deletePendingTransaction from './Mutations/deletePendingTransaction';
 import performTransaction from './Mutations/performTransaction';
+import savePendingTransaction from './Mutations/savePendingTransaction';
+import { updateLastLoginDate } from './Mutations/updateLastLoginDate';
+import unpackAccountListInfo from './Request/unpackAccountListInfo';
+import unpackLoginInfo from './Request/unpackLoginInfo';
 import unpackTransactionInfo from './Request/unpackTransactionInfo';
 import unpackTransactionListInfo from './Request/unpackTransactionListInfo';
-import savePendingTransaction from './Mutations/savePendingTransaction';
-import unpackLoginInfo from './Request/unpackLoginInfo';
-import databaseClient from './Configuration/databaseClient';
-import { updateLastLoginDate } from './Mutations/updateLastLoginDate';
-import stringifyUserData from './Response/createLoginResponse';
+import unpackUserCreationInfo from './Request/unpackUserCreationInfo';
+import createAccountListResponse from './Response/createAccountListResponse';
 import createLoginResponse from './Response/createLoginResponse';
 import createStatusCodeResponse from './Response/createStatusCodeResponse';
 import createTransactionListResponse from './Response/createTransactionListResponse';
-import unpackAccountListInfo from './Request/unpackAccountListInfo';
-import createAccountListResponse from './Response/createAccountListResponse';
 
 type LambdaHandler = Handler<APIGatewayProxyEvent, APIGatewayProxyResult>
 
@@ -73,5 +72,16 @@ export const postLoginHandler: LambdaHandler = event => {
     await updateLastLoginDate(info);
 
     return createLoginResponse(info);
+  });
+}
+
+export const postCreateUserHandler: LambdaHandler = event => {
+  return handleRequest(async () => {
+    const bareUser = unpackUserCreationInfo(event);
+    const userData = await deriveFullUser(bareUser);
+
+    await createUser(userData);
+    
+    return createStatusCodeResponse(NO_CONTENT);
   });
 }

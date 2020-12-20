@@ -117,6 +117,14 @@ functions:
           method: post
           cors: true
 
+  postCreateUser:
+    handler: src/HttpHandlers.postCreateUserHandler
+    events:
+      - http:
+          path: createUser
+          method: post
+          cors: true
+
 resources:
   Resources:
     customersTable:

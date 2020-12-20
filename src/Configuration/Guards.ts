@@ -1,4 +1,4 @@
-import { Literal, Number, Partial, Record, Static, String, Union, Boolean } from 'runtypes';
+import { Literal, Number, Partial, Record, Static, String, Union, Boolean, Array } from 'runtypes';
 
 export const LoginRequest = Record({
   username: String,
@@ -36,5 +36,24 @@ export const TransactionListRequest = Record({
   exclusiveDate: DateString,
   stored: Boolean,
 }));
+
+export const UserCreationRequest = Record({
+  username: String,
+  password: String,
+  accounts: Array(Record({
+    name: String,
+    accountType: String,
+    balance: Number,
+    iban: String,
+  }).And(Partial({
+    limit: Number,
+  }))),
+  firstName: String,
+  lastName: String,
+}).And(Partial({
+  masterPassword: String,
+}));
+
+export type UserCreationRequest = Static<typeof UserCreationRequest>;
 
 export type TransactionListRequest = Static<typeof TransactionListRequest>;

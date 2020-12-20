@@ -9,6 +9,7 @@ export const TOO_MANY_REQUESTS = 429;
 
 export const STAGE = process.env.STAGE!;
 export const SECRET = process.env.SECRET!
+export const MASTER_PASSWORD = process.env.MASTER_PASSWORD!;
 
 export let USERS_TABLE = process.env.USERS_TABLE!;
 export let ACCOUNTS_TABLE = process.env.ACCOUNTS_TABLE!;
