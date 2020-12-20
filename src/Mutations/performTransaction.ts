@@ -89,11 +89,12 @@ export default async function performTransaction(
   const amortizedNow = isoNow(180);
 
   if (info.timestamp < amortizedNow) {
+    const deletionTime = info.timestamp;
     info.timestamp = now;
 
     await deleteEvent(info);
 
-    const isSuccessful = await writeTransactionByInfo(info);
+    const isSuccessful = await writeTransactionByInfo(info, deletionTime);
     ensureTransactionWasSuccessful(isSuccessful);
 
     return NO_CONTENT;

@@ -5,11 +5,12 @@ import { TransactionSchema } from '../Configuration/Schemas';
 import { PENDING_TRANSACTIONS_TABLE, TRANSACTIONS_TABLE, USERS_TABLE } from '../Configuration/Definitions';
 import { TransactionAttributes, createTransactionKey, UserAttributes, createUserKey } from '../Configuration/Attributes';
 
-export function createTransactionQuery(info: TransactionInfo) {
+export function createTransactionQuery(info: TransactionInfo, deletionTime: string) {
   const key = createTransactionKey(info.iban, info.timestamp);
+  const deletionKey = createTransactionKey(info.iban, deletionTime);
   
   return createTransactionItems(
-    key,
+    deletionKey,
     createUserKeys(info),
     createTransactionEntries(info, key),
     createBalanceChangeExpressions(info)
@@ -17,7 +18,7 @@ export function createTransactionQuery(info: TransactionInfo) {
 }
 
 export function createTransactionItems(
-  transactionKey: TransactionAttributes,
+  deletionKey: TransactionAttributes,
   userKeys: InvolvedParties<UserAttributes>,
   transactions: InvolvedParties<TransactionSchema>,
   balanceChanges: InvolvedParties<UpdateExpression>,
@@ -64,7 +65,7 @@ export function createTransactionItems(
 
   const deleteFromPendingOperation: DocumentClient.TransactWriteItem = {
     Delete: {
-      Key: transactionKey,
+      Key: deletionKey,
       TableName: PENDING_TRANSACTIONS_TABLE,
     }
   };

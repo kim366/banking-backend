@@ -12,8 +12,8 @@ export function updateLastLoginDateByUserName(username: string, date: string): P
   return updateLastLoginDate(key, date);
 }
 
-export function writeTransactionByInfo(info: TransactionInfo) {
-  const query = createTransactionQuery(info);
+export function writeTransactionByInfo(info: TransactionInfo, deletionTime: string) {
+  const query = createTransactionQuery(info, deletionTime);
   return writeTransaction(query);
 }
 
