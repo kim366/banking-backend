@@ -14,6 +14,7 @@ export function createTransactionListQuery(info: TransactionListInfo): DocumentC
   
   return {
     KeyConditionExpression: 'iban = :iban',
+    ScanIndexForward: false,
     ExpressionAttributeValues: {
       ':iban': info.iban,
     },
